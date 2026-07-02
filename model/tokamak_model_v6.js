@@ -1,9 +1,13 @@
-/* Modèle tokamak v6 — 0D en unités SI, machine JET-like, calibré littérature.
+/* Modèle tokamak v6 — 0D en unités SI, calibré littérature.
    Voir docs/V6_PHYSIQUE.md pour les équations et les références. Ce moteur est
    distinct de la v5 pédagogique (model/tokamak_model.js), qui reste intacte.
    Unités : t en s, w en m, Ω en rad/s, Te0 en keV, Ip en A, Prad en W.
-   Double export : window.TokamakModelV6 en navigateur, module.exports en Node.
-   Toute la stochasticité passe par le rng/gauss fournis (reproductible). */
+   Les paramètres MACHINE vivent dans un preset unique (MACHINES / resolveMachine,
+   surchargeable par tir via P.machine) ; C ne contient que les constantes du
+   MODÈLE. Seul le preset 'jet-like' est calibré pour la chaîne de disruption
+   complète ; les autres presets servent les scalings (τ_E…) en attendant leur
+   calibration propre.
+   Double export : window.TokamakModelV6 en navigateur, module.exports en Node. */
 (function (root, factory) {
   if (typeof module === 'object' && typeof module.exports === 'object') {
     module.exports = factory();
@@ -12,24 +16,37 @@
   }
 })(typeof self !== 'undefined' ? self : this, function () {
 /*MODEL-V6-BEGIN*/
+// --- Presets machine : TOUT ce qui décrit la machine est ici, rien ailleurs.
+var MACHINES = {
+  'jet-like': {
+    R0: 3.0, A: 1.0, B0: 3.0, KAPPA: 1.0, IP0: 2.5e6,
+    MION: 2, ZEFF: 1.7,
+    RS21: 0.75, RS32: 0.60,      // rayons q=2 / q=1.5 (fractions de a)
+    TAUW: 0.005,                 // temps résistif de la chambre (s)
+    LI: 1.0,                     // inductance interne
+  },
+  'iter-like': {
+    R0: 6.2, A: 2.0, B0: 5.3, KAPPA: 1.7, IP0: 15e6,
+    MION: 2.5, ZEFF: 1.7,
+    RS21: 0.75, RS32: 0.60,
+    TAUW: 0.188,                 // chambre épaisse d'ITER (~200 ms)
+    LI: 0.9,
+  },
+};
+
 var C = {
   MU0: 4e-7 * Math.PI,
-  // --- Machine JET-like (section circulaire)
-  R0: 3.0, A: 1.0, B0: 3.0, KAPPA: 1.0, MION: 2, ZEFF: 1.7, LNL: 17,
-  IP0: 2.5e6,                    // A
-  RS21: 0.75, RS32: 0.60,        // rayons q=2 et q=1.5 (fractions de a)
+  LNL: 17,
   // --- Profils (figés en 0D)
   TERSFRAC: 0.4,                 // Te(r_s)/Te0
   PEAK: 2.5,                     // Te0 / <T>
   NEO: 2.5,                      // correction néoclassique de la résistivité
-  LI: 1.0,                       // inductance interne
   // --- Îlots (fractions de a sauf mention)
   WSEED: 0.005, WSAT: 0.25, W32SAT: 0.20,
   D32A: -0.5, CPL: 8, LBOOST: 1.5,
   WDBS: 0.02,                    // largeur de coupure du terme bootstrap
   // --- Rotation / paroi
-  TAUW: 0.005,                   // temps résistif de la chambre (s)
-  CW: 4.0e6,                     // couple de paroi (calibré : lock à w ~ 2-5 cm)
+  CW: 4.0e6,                     // couple de paroi (calibré jet-like : lock à w ~ 2-5 cm)
   LOCKFRAC: 0.05, TAULOCK: 0.010,
   // --- Énergie (IPB98(y,2), H98 = 1)
   H98: 1.0, FDEGK: 1.5, FDEGMIN: 0.15,
@@ -40,20 +57,34 @@ var C = {
   // --- Quenches
   KCRIT: 1.0, TQTAU: 3e-4, TQTE: 0.05, CQTE: 0.10, TECQ: 0.010,
   ZEFFCQ: 3, IPSPIKE: 0.05, ENDIP: 0.05,
-  // --- Mesures
+  // --- Mesures 0D (la couche diagnostics riche vit dans tokamak_diags_v6.js)
   CMIR: 0.05, MIR32: 0.35,
-  PRADBASE: 0.3,                 // fraction rayonnée de P_chauffage hors quench
-  PRADW: 30e6,                   // W de rayonnement par (w+w32)/a (bord froid)
+  PRADBASE: 0.3, PRADW: 30e6,
   NECQ: 0.4, NEINFLUX: 0.5, NETAU: 0.25, NESPT: 0.006,
-  NOISETAU: 1.5e-3,              // temps de corrélation du bruit AR(1) (s)
+  NOISETAU: 1.5e-3,
   TMAX: 10.0,
 };
-// Grandeurs dérivées de la machine
-C.VOL = 2 * Math.PI * Math.PI * C.R0 * C.A * C.A * C.KAPPA;          // m^3
-C.KW = 3 * 1.602e-16 * 1e19 * C.VOL / C.PEAK;                        // J / (keV·n19)
-C.LP = C.MU0 * C.R0 * (Math.log(8 * C.R0 / C.A) - 2 + C.LI / 2);     // H
-C.DRS = (C.RS21 - C.RS32) * C.A;                                     // m
-C.EPSS = C.RS21 * C.A / C.R0;                                        // ε à r_s
+
+// Résout un preset (nom), un objet de surcharges, ou rien (jet-like), et
+// calcule les grandeurs dérivées de la machine.
+function resolveMachine(m) {
+  var base = MACHINES['jet-like'];
+  var src;
+  if (m === undefined || m === null) src = base;
+  else if (typeof m === 'string') {
+    src = MACHINES[m];
+    if (!src) throw new Error('machine inconnue : ' + m);
+  } else {
+    src = Object.assign({}, base, m);
+  }
+  var M = Object.assign({}, src);
+  M.VOL = 2 * Math.PI * Math.PI * M.R0 * M.A * M.A * M.KAPPA;          // m^3
+  M.KW = 3 * 1.602e-16 * 1e19 * M.VOL / C.PEAK;                        // J / (keV·n19)
+  M.LP = C.MU0 * M.R0 * (Math.log(8 * M.R0 / M.A) - 2 + M.LI / 2);     // H
+  M.DRS = (M.RS21 - M.RS32) * M.A;                                     // m
+  M.EPSS = M.RS21 * M.A / M.R0;                                        // ε à r_s
+  return M;
+}
 
 function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;var t=Math.imul(a^a>>>15,1|a);
   t=t+Math.imul(t^t>>>7,61|t)^t;return ((t^t>>>14)>>>0)/4294967296;};}
@@ -70,22 +101,22 @@ function etaSpitzer(TeKeV, zeff, neo) {
 }
 
 // Scaling de confinement IPB98(y,2) — Ip en A, P en W, n en 1e19 m^-3.
-function tauE98(IpA, n19, PW) {
+function tauE98(M, IpA, n19, PW) {
   var ipMA = Math.max(IpA, 1e4) / 1e6, pMW = Math.max(PW, 1e5) / 1e6;
   return C.H98 * 0.0562 *
-    Math.pow(ipMA, 0.93) * Math.pow(C.B0, 0.15) * Math.pow(n19, 0.41) *
-    Math.pow(pMW, -0.69) * Math.pow(C.R0, 1.97) *
-    Math.pow(C.A / C.R0, 0.58) * Math.pow(C.KAPPA, 0.78) * Math.pow(C.MION, 0.19);
+    Math.pow(ipMA, 0.93) * Math.pow(M.B0, 0.15) * Math.pow(n19, 0.41) *
+    Math.pow(pMW, -0.69) * Math.pow(M.R0, 1.97) *
+    Math.pow(M.A / M.R0, 0.58) * Math.pow(M.KAPPA, 0.78) * Math.pow(M.MION, 0.19);
 }
 
 // Beta poloïdal (profil figé) pour le terme bootstrap.
-function betaP(Te0, n19, IpA) {
-  var pMoy = (2 / 3) * C.KW * n19 * Te0 / C.VOL;          // Pa
-  var bTheta = C.MU0 * Math.max(IpA, 1e4) / (2 * Math.PI * C.A);
+function betaP(M, Te0, n19, IpA) {
+  var pMoy = (2 / 3) * M.KW * n19 * Te0 / M.VOL;          // Pa
+  var bTheta = C.MU0 * Math.max(IpA, 1e4) / (2 * Math.PI * M.A);
   return 2 * C.MU0 * pMoy / (bTheta * bTheta);
 }
 
-// P : { d0a, f0k, cwf, bs, pheat, n19, noise, elm } — défauts JET-like.
+// P : { machine, d0a, f0k, cwf, bs, pheat, n19, noise, elm } — défauts JET-like.
 function defP(P) {
   return {
     d0a: P.d0a === undefined ? 1.0 : P.d0a,      // Δ'0·a (sans dimension)
@@ -101,12 +132,13 @@ function defP(P) {
 
 function newState(P, rng) {
   var p = defP(P);
+  var M = resolveMachine(P.machine);
   var om0 = 2 * Math.PI * p.f0k * 1e3;
-  return { t: 0,
-    w: C.WSEED * C.A, w32: C.WSEED * C.A * 0.6,
+  return { t: 0, M: M,
+    w: C.WSEED * M.A, w32: C.WSEED * M.A * 0.6,
     Om: om0, Om0: om0,
     Te0: 3.0,                                    // démarre froid, monte vers l'équilibre
-    Ip: C.IP0, TeCQ: -1,
+    Ip: M.IP0, TeCQ: -1,
     // Température de plateau post-quench propre au tir (6-16 eV) : c'est elle
     // qui disperse la durée du quench de courant, comme dans les distributions
     // expérimentales (τ_L/R ∝ Te^3/2).
@@ -132,17 +164,18 @@ function stepNoise(S, p, g, dt) {
 }
 
 function measures(S, p) {
+  var M = S.M;
   var mir = 0;
   if (!S.ended) {
-    var wa = S.w / C.A, w32a = S.w32 / C.A;
-    mir = C.CMIR * C.B0 * wa * wa * S.Om * Math.sin(S.rotPh)
-        + C.MIR32 * C.CMIR * C.B0 * w32a * w32a * S.Om * Math.sin(1.5 * S.rotPh + 1.1)
+    var wa = S.w / M.A, w32a = S.w32 / M.A;
+    mir = C.CMIR * M.B0 * wa * wa * S.Om * Math.sin(S.rotPh)
+        + C.MIR32 * C.CMIR * M.B0 * w32a * w32a * S.Om * Math.sin(1.5 * S.rotPh + 1.1)
         + C.ELMMIR * S.elmB * Math.sin(S.elmPh);
   }
   return {
     mir: mir + S.nM * 1.0,                        // T/s (bruit : échelle 1 T/s)
     te: S.Te0 + S.nT * 5.0,                       // keV (échelle 5 keV)
-    ip: S.Ip / 1e6 + S.nI * 2.5,                  // MA (échelle Ip0)
+    ip: S.Ip / 1e6 + S.nI * (M.IP0 / 1e6),        // MA (échelle Ip0)
     prad: (S.Prad + S.prFlash) / 1e6 + S.nP * 3,  // MW (échelle 3 MW)
     ne: p.n19 * (S.Ne + 1) + S.neSpike + S.nN * 0.5, // 1e19 m^-3
   };
@@ -150,6 +183,7 @@ function measures(S, p) {
 
 function stepModel(S, P, g, dt) {
   var p = defP(P);
+  var M = S.M;
   if (S.ended) {
     S.t += dt;
     S.Te0 += (0 - S.Te0) * dt / 0.05;
@@ -164,26 +198,26 @@ function stepModel(S, P, g, dt) {
 
   // --- Rutherford (classique + verrouillage + bootstrap optionnel + couplage)
   var teRs = C.TERSFRAC * S.Te0;
-  var gamma = 1.22 * etaSpitzer(teRs, C.ZEFF, C.NEO) / C.MU0;   // m²/s
-  var wa = S.w / C.A;
-  var dEff = (p.d0a * (1 - S.w / (C.WSAT * C.A)) + (S.locked ? C.LBOOST : 0)) / C.A;
+  var gamma = 1.22 * etaSpitzer(teRs, M.ZEFF, C.NEO) / C.MU0;   // m²/s
+  var wa = S.w / M.A;
+  var dEff = (p.d0a * (1 - S.w / (C.WSAT * M.A)) + (S.locked ? C.LBOOST : 0)) / M.A;
   if (p.bs > 0) {
-    var bp = betaP(S.Te0, p.n19, S.Ip);
-    dEff += p.bs * Math.sqrt(C.EPSS) * bp * wa / (wa * wa + C.WDBS * C.WDBS) / C.A;
+    var bp = betaP(M, S.Te0, p.n19, S.Ip);
+    dEff += p.bs * Math.sqrt(M.EPSS) * bp * wa / (wa * wa + C.WDBS * C.WDBS) / M.A;
   }
   S.w += gamma * dEff * dt;
-  if (S.w < C.WSEED * C.A) S.w = C.WSEED * C.A;
-  if (S.w > C.WSAT * C.A) S.w = C.WSAT * C.A;
-  if (S.tOnset < 0 && S.w >= 0.01 * C.A) S.tOnset = S.t;   // îlot détectable (1 cm)
-  var d32 = (C.D32A + C.CPL * wa) * (1 - S.w32 / (C.W32SAT * C.A)) / C.A;
+  if (S.w < C.WSEED * M.A) S.w = C.WSEED * M.A;
+  if (S.w > C.WSAT * M.A) S.w = C.WSAT * M.A;
+  if (S.tOnset < 0 && S.w >= 0.01 * M.A) S.tOnset = S.t;   // îlot détectable (1 % de a)
+  var d32 = (C.D32A + C.CPL * wa) * (1 - S.w32 / (C.W32SAT * M.A)) / M.A;
   S.w32 += gamma * d32 * dt;
-  if (S.w32 < C.WSEED * C.A * 0.6) S.w32 = C.WSEED * C.A * 0.6;
-  if (S.w32 > C.W32SAT * C.A) S.w32 = C.W32SAT * C.A;
+  if (S.w32 < C.WSEED * M.A * 0.6) S.w32 = C.WSEED * M.A * 0.6;
+  if (S.w32 > C.W32SAT * M.A) S.w32 = C.W32SAT * M.A;
 
   // --- Rotation : restauration visqueuse vs couple de paroi (∝ w⁴, emballement)
-  var tauE = tauE98(S.Ip, p.n19, p.pheat * 1e6);
+  var tauE = tauE98(M, S.Ip, p.n19, p.pheat * 1e6);
   if (!S.locked) {
-    var brake = (C.CW * p.cwf / C.TAUW) * Math.pow(wa, 4) * S.Om / (1 + S.Om * C.TAUW);
+    var brake = (C.CW * p.cwf / M.TAUW) * Math.pow(wa, 4) * S.Om / (1 + S.Om * M.TAUW);
     S.Om += ((S.Om0 - S.Om) / tauE - brake) * dt;
     if (S.Om < C.LOCKFRAC * S.Om0) { S.locked = true; S.tLock = S.t; S.wAtLock = S.w; }
   } else {
@@ -191,11 +225,11 @@ function stepModel(S, P, g, dt) {
   }
 
   // --- Recouvrement (Chirikov) → quench thermique
-  S.K = (S.w + S.w32) / C.DRS;
+  S.K = (S.w + S.w32) / M.DRS;
   if (!S.tq && S.K >= C.KCRIT) {
     S.tq = true; S.tTQ = S.t;
     S.Ip *= (1 + C.IPSPIKE);                       // pic d'aplatissement du profil
-    S.prFlash = C.KW * p.n19 * S.Te0 / C.TQTAU;    // flash radiatif ~ ΔW/τ_TQ (W)
+    S.prFlash = M.KW * p.n19 * S.Te0 / C.TQTAU;    // flash radiatif ~ ΔW/τ_TQ (W)
     S.neSpike = C.NEINFLUX * p.n19;
   }
 
@@ -203,9 +237,9 @@ function stepModel(S, P, g, dt) {
   if (S.tq) {
     S.Te0 += (C.TQTE - S.Te0) * dt / C.TQTAU;
   } else {
-    var fdeg = Math.max(C.FDEGMIN, 1 - C.FDEGK * (S.w + S.w32) / C.A);
-    var wth = C.KW * p.n19 * S.Te0;                                  // J
-    S.Te0 += (p.pheat * 1e6 - wth / (tauE * fdeg)) / (C.KW * p.n19) * dt;
+    var fdeg = Math.max(C.FDEGMIN, 1 - C.FDEGK * (S.w + S.w32) / M.A);
+    var wth = M.KW * p.n19 * S.Te0;                                  // J
+    S.Te0 += (p.pheat * 1e6 - wth / (tauE * fdeg)) / (M.KW * p.n19) * dt;
     S.sawT += dt;
     if (S.sawT > S.sawP && S.Te0 > C.SAWTE) { S.sawT = 0; S.Te0 *= C.SAWDROP; }
     var elmA = p.elm;
@@ -226,15 +260,15 @@ function stepModel(S, P, g, dt) {
   if (S.tq && !S.cq && S.Te0 < C.CQTE) { S.cq = true; S.tCQ = S.t; S.TeCQ = S.Te0; }
   if (S.cq) {
     S.TeCQ += (S.teCQf - S.TeCQ) * dt / 0.002;     // relaxe vers le plateau du tir
-    var rp = etaSpitzer(S.TeCQ, C.ZEFFCQ, 1) * 2 * Math.PI * C.R0 /
-             (Math.PI * C.A * C.A * C.KAPPA);
-    S.Ip += (-S.Ip * rp / C.LP) * dt;
-    if (S.Ip < C.ENDIP * C.IP0) { S.Ip = C.ENDIP * C.IP0; S.ended = true; S.tEnd = S.t; }
+    var rp = etaSpitzer(S.TeCQ, C.ZEFFCQ, 1) * 2 * Math.PI * M.R0 /
+             (Math.PI * M.A * M.A * M.KAPPA);
+    S.Ip += (-S.Ip * rp / M.LP) * dt;
+    if (S.Ip < C.ENDIP * M.IP0) { S.Ip = C.ENDIP * M.IP0; S.ended = true; S.tEnd = S.t; }
   }
   S.prFlash *= Math.exp(-dt / C.TQTAU);
 
   // --- Rayonnement et densité (canaux mesurés)
-  var prEq = C.PRADBASE * p.pheat * 1e6 + C.PRADW * (S.w + S.w32) / C.A;
+  var prEq = C.PRADBASE * p.pheat * 1e6 + C.PRADW * (S.w + S.w32) / M.A;
   S.Prad += (prEq - S.Prad) * dt / 0.01;
   S.Ne += ((S.cq ? -(1 - C.NECQ) : 0) - S.Ne) * dt / C.NETAU;
   S.neSpike *= Math.exp(-dt / C.NESPT);
@@ -242,7 +276,7 @@ function stepModel(S, P, g, dt) {
   S.rotPh += S.Om * dt;
   stepNoise(S, p, g, dt);
 
-  if (S.t < S.tLock || S.tLock < 0) { S.phaseId = (S.w >= 0.02 * C.A) ? 1 : 0; }
+  if (S.t < S.tLock || S.tLock < 0) { S.phaseId = (S.w >= 0.02 * M.A) ? 1 : 0; }
   if (S.locked) S.phaseId = 2;
   if (S.tq) S.phaseId = 3;
   if (S.cq) S.phaseId = 4;
@@ -256,11 +290,14 @@ function chooseDt(S) { return (S.tq && !S.ended) ? 1e-5 : 1e-4; }
 /*MODEL-V6-END*/
   return {
     C: C,
+    MACHINES: MACHINES,
+    resolveMachine: resolveMachine,
     mulberry32: mulberry32,
     makeGauss: makeGauss,
     etaSpitzer: etaSpitzer,
     tauE98: tauE98,
     betaP: betaP,
+    defP: defP,
     newState: newState,
     stepModel: stepModel,
     chooseDt: chooseDt

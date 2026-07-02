@@ -11,6 +11,7 @@ const M = require('../model/tokamak_model_v6.js');
 
 const SAIN = { d0a: -0.5 };
 const CLASSIQUE = { d0a: 1 };
+const MJ = M.resolveMachine('jet-like');
 
 // Un tir complet à pas adaptatif (chooseDt), avec instrumentation.
 function runShot(P, seed) {
@@ -75,11 +76,32 @@ test('Spitzer : η(2 keV) ≈ 1e-8 Ω·m (Wesson)', () => {
 });
 
 test('IPB98(y,2) : τ_E JET-like (2.5 MA, n̄=3, 10 MW) dans [0.2, 0.35] s', () => {
-  const tau = M.tauE98(2.5e6, 3, 1e7);
+  const tau = M.tauE98(MJ, 2.5e6, 3, 1e7);
   assert.ok(tau >= 0.2 && tau <= 0.35, `τ_E=${tau}`);
   // Dépendances du scaling : favorable en courant, dégradé en puissance.
-  assert.ok(M.tauE98(3.5e6, 3, 1e7) > tau, 'τ_E doit croître avec Ip');
-  assert.ok(M.tauE98(2.5e6, 3, 2e7) < tau, 'τ_E doit décroître avec P');
+  assert.ok(M.tauE98(MJ, 3.5e6, 3, 1e7) > tau, 'τ_E doit croître avec Ip');
+  assert.ok(M.tauE98(MJ, 2.5e6, 3, 2e7) < tau, 'τ_E doit décroître avec P');
+});
+
+test('IPB98(y,2) : le preset iter-like retrouve la prédiction publiée τ_E ≈ 3.7 s', () => {
+  // Scénario Q=10 : Ip = 15 MA, n̄ ≈ 10×10¹⁹ m⁻³, P_pertes ≈ 87 MW
+  // (ITER Physics Basis : τ_E prédit ≈ 3.7 s).
+  const MI = M.resolveMachine('iter-like');
+  const tau = M.tauE98(MI, 15e6, 10, 87e6);
+  assert.ok(tau >= 3.0 && tau <= 4.5, `τ_E ITER=${tau}`);
+});
+
+test('machine : presets et surcharges via un objet de config unique', () => {
+  // Un nom inconnu doit échouer clairement.
+  assert.throws(() => M.resolveMachine('sparc'), /machine inconnue/);
+  // Une surcharge partielle recalcule les grandeurs dérivées.
+  const petit = M.resolveMachine({ A: 0.5 });
+  assert.equal(petit.R0, MJ.R0);
+  assert.ok(Math.abs(petit.VOL - MJ.VOL / 4) < 1e-9, 'VOL ∝ a²');
+  assert.ok(Math.abs(petit.DRS - MJ.DRS / 2) < 1e-12, 'Δr_s ∝ a');
+  // La machine du tir est bien celle demandée.
+  const S = M.newState({ machine: 'iter-like' });
+  assert.equal(S.Ip, 15e6);
 });
 
 test('sain (d0a=−0.5, seed 42) : 10 s sans événement, Te0 JET-like [4, 8] keV', () => {
@@ -127,13 +149,13 @@ test('classique : quench thermique en 0.05–1.5 ms (chute Te 80→20 %)', () =>
 
 test('classique : pic d’Ip de +2 à +10 % (aplatissement du profil)', () => {
   const o = shot(CLASSIQUE, 42);
-  const pic = o.ipPeakMA / (M.C.IP0 / 1e6);
+  const pic = o.ipPeakMA / (MJ.IP0 / 1e6);
   assert.ok(pic >= 1.02 && pic <= 1.10, `pic Ip=${pic}×Ip0`);
 });
 
 test('classique : quench de courant 80→20 % normalisé dans [1.7, 30] ms/m² (ITER/JET)', () => {
   const o = shot(CLASSIQUE, 42);
-  const norme = (o.cqT20 - o.cqT80) / (Math.PI * M.C.A * M.C.A * M.C.KAPPA) * 1e3;
+  const norme = (o.cqT20 - o.cqT80) / (Math.PI * MJ.A * MJ.A * MJ.KAPPA) * 1e3;
   assert.ok(o.cqT80 > 0 && norme >= 1.7 && norme <= 30, `CQ normalisé=${norme} ms/m²`);
   const totale = o.S.tEnd - o.S.tCQ;
   assert.ok(totale >= 0.02 && totale <= 0.15, `durée CQ totale=${totale} s`);

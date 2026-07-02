@@ -102,10 +102,11 @@ function main() {
   }
 
   fs.mkdirSync(args.out, { recursive: true });
+  const MACH = M.resolveMachine();
   const manifest = {
     schema: 'tokamak_v6_run/1',
     generateur: 'scripts/generate_v6.js',
-    machine: { R0_m: M.C.R0, a_m: M.C.A, B0_T: M.C.B0, Ip0_MA: M.C.IP0 / 1e6 },
+    machine: { preset: 'jet-like', R0_m: MACH.R0, a_m: MACH.A, B0_T: MACH.B0, Ip0_MA: MACH.IP0 / 1e6 },
     sample_s: SAMPLE_S,
     params: {
       shots: args.shots,
