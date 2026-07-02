@@ -43,6 +43,8 @@ def features_tir(df: pd.DataFrame, win: int, hop: int) -> pd.DataFrame:
     mir = df["mirnov"].to_numpy(float)
     te = df["te"].to_numpy(float)
     ip = df["ip"].to_numpy(float)
+    prad = df["prad"].to_numpy(float)
+    ne = df["ne"].to_numpy(float)
     t = df["t_ms"].to_numpy(float)
     phase = df["phase"].to_numpy(int)
     if len(mir) < win + hop:
@@ -51,6 +53,8 @@ def features_tir(df: pd.DataFrame, win: int, hop: int) -> pd.DataFrame:
     w_mir = fenetres(mir, win, hop)
     w_te = fenetres(te, win, hop)
     w_ip = fenetres(ip, win, hop)
+    w_pr = fenetres(prad, win, hop)
+    w_ne = fenetres(ne, win, hop)
     fin = np.arange(win - 1, len(mir), hop)[: len(w_mir)]  # index de fin de fenêtre
 
     rms_mirnov = np.sqrt((w_mir**2).mean(axis=1))
@@ -72,6 +76,10 @@ def features_tir(df: pd.DataFrame, win: int, hop: int) -> pd.DataFrame:
             "freq_khz": freq_khz,
             "te_slope": te_slope,
             "ip_dev": ip_dev,
+            "prad_mean": w_pr.mean(axis=1),
+            "prad_slope": pente(w_pr, SAMPLE_MS),
+            "ne_mean": w_ne.mean(axis=1),
+            "ne_slope": pente(w_ne, SAMPLE_MS),
             "phase": phase[fin],
         }
     )

@@ -24,12 +24,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-DETECTEURS = ["z_mirnov", "z_te", "z_ip", "z_multi", "logistique"]
+DETECTEURS = ["z_mirnov", "z_te", "z_ip", "z_prad", "z_ne", "z_multi", "logistique"]
 K_CONSECUTIFS = 3
 FAR_CIBLE = 0.05
 
 COULEURS = {
     "z_mirnov": "#F272AC", "z_te": "#D9975B", "z_ip": "#5C89B8",
+    "z_prad": "#E8B45A", "z_ne": "#8FBC8F",
     "z_multi": "#FF7A5C", "logistique": "#93A4B4",
 }
 
@@ -175,8 +176,8 @@ def main() -> None:
     g = g[g["t_ms"] <= t_tq_ex + 25]  # après le TQ, détecter ne compte plus
     fig, ax = plt.subplots(figsize=(11, 4.2))
     ax.plot(g["t_ms"], g["z_mirnov"], label="z_mirnov", color=COULEURS["z_mirnov"], lw=2.6, alpha=0.9)
+    ax.plot(g["t_ms"], g["z_prad"], label="z_prad", color=COULEURS["z_prad"], lw=1.6)
     ax.plot(g["t_ms"], g["z_multi"], label="z_multi", color=COULEURS["z_multi"], lw=1.2, ls="--")
-    ax.plot(g["t_ms"], g["z_te"], label="z_te", color=COULEURS["z_te"], lw=1.2)
     ax.axhline(points_fonctionnement["z_multi"]["seuil"], color="k", ls=":", lw=1,
                label="seuil (5 % FA)")
     bandes = {1: "#E8B45A", 2: "#FF7A5C"}
@@ -189,8 +190,8 @@ def main() -> None:
     ax.set_yscale("log")
     ax.set_xlabel("t (ms)")
     ax.set_ylabel("score (log)")
-    ax.set_title(f"Tir {seed_ex} — au verrouillage tout s'éteint : trou aveugle jusqu'au quench "
-                 "(z_mirnov ≈ z_multi, confondus avant t_tq)")
+    ax.set_title(f"Tir {seed_ex} — au verrouillage le canal magnétique s'éteint, "
+                 "P_rad porte l'alerte jusqu'au quench")
     ax.legend(fontsize=8)
     ax.grid(alpha=0.3)
     fig.tight_layout()
@@ -251,32 +252,34 @@ def main() -> None:
         lignes.append(f"| {det} | {s['ph1']:.0%} | {s['ph2']:.0%} | {s['ph2s']:.0%} |")
     lignes += [
         "",
-        f"Trois enseignements (z_multi médian : {z_multi_median['ph1']:.0f} en phase 1, "
-        f"{z_multi_median['ph2']:.0f} en phase 2, {z_multi_median['ph2s']:.0f} en phase 2 stricte) :",
+        f"Trois enseignements (feature dominante en phase 2 : {top_dom} ; "
+        f"trou de phase 2 : {duree_ph2_tirs.median():.0f} ms en médiane, "
+        f"max {duree_ph2_tirs.max():.0f} ms, juste avant le quench) :",
         "",
-        "1. **Le 100 % de détection ne doit rien à la phase verrouillée** : l'alarme",
-        "   se déclenche en phase 1, portée par le RMS Mirnov du mode tournant, et",
-        "   le temps d'alerte est déjà acquis quand le mode se verrouille.",
-        "2. **En phase 2 stricte, tous les détecteurs fenêtrés deviennent quasi",
-        f"   aveugles** ({stats_phase['z_multi']['ph2s']:.0%} de dépassements pour le multi-canal,",
-        f"   z médian ≈ {z_multi_median['ph2s']:.0f}) : le Mirnov retombe au niveau du bruit, la",
-        "   lente dérive de T_e est noyée dans le clapotis des dents de scie qui a",
-        "   calibré la MAD, et I_p ne bouge qu'au quench (`z_te` et `z_ip` ne",
-        "   détectent d'ailleurs RIEN à 5 % de fausses alarmes, phase 1 comprise).",
-        "   Le multi-canal n'est pas sauvé par te/ip — il retombe avec le mirnov.",
-        f"   Ce trou aveugle dure {duree_ph2_tirs.median():.0f} ms en médiane "
-        f"(max {duree_ph2_tirs.max():.0f} ms), juste avant le quench.",
-        "3. **Le seul signal propre à la phase 2 est le transitoire d'extinction",
-        f"   lui-même** : sur ces fenêtres, la feature dominante est {top_dom} —",
-        "   la disparition brutale du signal précurseur est elle-même un précurseur.",
+        "1. **L'alerte s'acquiert en phase 1, portée par le RMS Mirnov du mode",
+        f"   tournant** ({stats_phase['z_mirnov']['ph1']:.0%} des fenêtres au-dessus du seuil) —",
+        "   mais les bouffées ELM des tirs sains gonflent la calibration du canal",
+        "   magnétique et lui coûtent de la marge : son seuil monte, son alerte",
+        "   recule, et il peut manquer les tirs à précurseur court.",
+        "2. **Au verrouillage, le canal magnétique s'éteint** : en phase 2 stricte",
+        f"   `z_mirnov` ne tient plus que {stats_phase['z_mirnov']['ph2s']:.0%} des fenêtres — c'est le trou",
+        "   aveugle historique de la détection purement magnétique. Ni T_e (dérive",
+        "   lente noyée dans le clapotis des dents de scie qui a calibré la MAD),",
+        "   ni I_p (plat jusqu'au quench), ni la densité ne prennent le relais",
+        "   (`z_te`, `z_ip`, `z_ne` : ~0 % partout à 5 % de fausses alarmes).",
+        "3. **C'est P_rad qui comble le trou** : l'îlot verrouillé continue de",
+        f"   grossir et de rayonner, `z_prad` tient {stats_phase['z_prad']['ph2s']:.0%} des fenêtres de",
+        f"   phase 2 stricte, et le multi-canal ({stats_phase['z_multi']['ph2s']:.0%}) comme la logistique",
+        f"   ({stats_phase['logistique']['ph2s']:.0%}) restent armés du verrouillage jusqu'au quench.",
         "",
-        "Conséquence pour la détection d'anomalies : un détecteur par fenêtre sans",
-        "mémoire perdrait l'alarme pendant les dizaines de millisecondes qui",
-        "précèdent immédiatement le quench. Il faut soit une alarme à verrouillage",
-        "(latching, utilisé ici), soit des features à mémoire longue capables",
-        "d'encoder « le RMS s'est effondré depuis un niveau élevé » — c'est",
-        "exactement ce que la dérivée `d_rms_mirnov` capture au moment de la",
-        "transition, et ce qu'un modèle séquentiel (RNN/TCN) apprendrait de lui-même.",
+        "C'est la réponse à la question mono vs multi : un détecteur mono-canal",
+        "magnétique sans mémoire perd l'alarme pendant les dizaines de",
+        "millisecondes qui précèdent immédiatement le quench (il ne survivrait que",
+        "par verrouillage d'alarme, ou par une feature à mémoire du type « le RMS",
+        "s'est effondré depuis un niveau élevé », que `d_rms_mirnov` capture au",
+        "transitoire). Le multi-canal, lui, n'a pas besoin de mémoire : la",
+        "complémentarité physique des canaux (mirnov pour le mode tournant, P_rad",
+        "pour l'îlot verrouillé) assure une couverture continue.",
         "",
         f"![mode verrouillé]({png_verrou.name})",
         "",

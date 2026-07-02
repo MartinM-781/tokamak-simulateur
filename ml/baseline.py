@@ -20,6 +20,7 @@ from sklearn.preprocessing import StandardScaler
 
 FEATURES = [
     "rms_mirnov", "freq_khz", "te_slope", "ip_dev",
+    "prad_mean", "prad_slope", "ne_mean", "ne_slope",
     "d_rms_mirnov", "d_freq_khz", "d_te_slope", "d_ip_dev",
 ]
 # Jeux de features par détecteur z-score : mono-canal vs multi-canal.
@@ -27,6 +28,8 @@ CANAUX = {
     "z_mirnov": ["rms_mirnov", "freq_khz", "d_rms_mirnov", "d_freq_khz"],
     "z_te": ["te_slope", "d_te_slope"],
     "z_ip": ["ip_dev", "d_ip_dev"],
+    "z_prad": ["prad_mean", "prad_slope"],
+    "z_ne": ["ne_mean", "ne_slope"],
     "z_multi": FEATURES,
 }
 # Étiquetage des fenêtres pour le classifieur : précurseur = fenêtre finissant
