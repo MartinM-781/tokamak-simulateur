@@ -17,7 +17,8 @@ var MP={CR:0.0008,WSAT:0.35,W32SAT:0.25,WSEED:0.004,W32SEED:0.003,
   TAUE:40,DEG:1.2,SAWP:24,SAWDROP:0.92,SAWTE:0.55,
   TQTAU:0.8,TQTE:0.03,CQTE:0.15,SPIKE0:0.08,SPTAU:1.2,CQBASE:6,CQK:50,ENDIP:0.02,
   DRS:0.306,MIRA:0.4,TMAX:2500,
-  PRB:0.05,PRW:0.6,PRTAU:5,PRSP:1.0,PRSPT:2,NECQ:0.4,NETAU:25,NESP:0.5,NESPT:6};
+  PRB:0.05,PRW:0.6,PRTAU:5,PRSP:1.0,PRSPT:2,NECQ:0.4,NETAU:25,NESP:0.5,NESPT:6,
+  ELMP:35,ELMTAU:1.2,ELMF:8,ELMM:0.5,ELMR:0.25,ELMD:0.008};
 function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;var t=Math.imul(a^a>>>15,1|a);
   t=t+Math.imul(t^t>>>7,61|t)^t;return ((t^t>>>14)>>>0)/4294967296;};}
 function makeGauss(rng){var spare=null;return function(){
@@ -30,6 +31,7 @@ function newState(P){
     locked:false,tq:false,cq:false,ended:false,
     Te:1,Ip:1,spike:0,sawT:0,rotPh:0,K:0,phaseId:0,
     Prad:MP.PRB,Ne:1,prSpike:0,neSpike:0,
+    elmB:0,elmT:MP.ELMP,elmPh:0,
     nM:0,nT:0,nI:0,nP:0,nN:0,
     tLock:-1,tTQ:-1,tCQ:-1,tEnd:-1};
 }
@@ -78,11 +80,26 @@ function stepModel(S,P,g,dt){
   S.prSpike*=Math.exp(-dt/MP.PRSPT);
   S.Ne+=((S.cq?MP.NECQ:1)-S.Ne)*dt/MP.NETAU;
   S.neSpike*=Math.exp(-dt/MP.NESPT);
+  // Bouffées type ELM (confondeur, non labellisé) : plasma de bord chaud et
+  // mode non verrouillé seulement ; période ELMP jitterée, dip de T_e minime.
+  var elmA=(P.elm===undefined?0.6:P.elm);
+  if(elmA>0&&!S.locked&&!S.tq&&S.Te>0.7){
+    S.elmT-=dt;
+    if(S.elmT<=0){
+      S.elmB=elmA;
+      S.Te*=(1-MP.ELMD*elmA);
+      var jit=1+0.25*g();if(jit<0.5)jit=0.5;if(jit>1.5)jit=1.5;
+      S.elmT=MP.ELMP*jit;
+    }
+  }
+  S.elmB*=Math.exp(-dt/MP.ELMTAU);
+  S.elmPh+=2*Math.PI*MP.ELMF*dt;
   S.rotPh+=S.Om*dt;
   var mir=0;
   if(!S.ended){
     mir=MP.MIRA*Math.pow(S.W21/0.05,2)*(S.Om/S.Om0)*Math.sin(S.rotPh)
-       +0.35*MP.MIRA*Math.pow(S.W32/0.05,2)*(S.Om/S.Om0)*Math.sin(1.5*S.rotPh+1.1);
+       +0.35*MP.MIRA*Math.pow(S.W32/0.05,2)*(S.Om/S.Om0)*Math.sin(1.5*S.rotPh+1.1)
+       +MP.ELMM*S.elmB*Math.sin(S.elmPh);
     if(mir>3)mir=3;if(mir<-3)mir=-3;
   }
   var sg=(P.noise/100)*0.2431;
@@ -98,7 +115,7 @@ function stepModel(S,P,g,dt){
   if(S.ended)S.phaseId=5;
   S.t+=dt;
   return {mir:mir+S.nM,te:S.Te+S.nT,ip:S.Ip+S.spike+S.nI,
-    prad:S.Prad+S.prSpike+S.nP,ne:S.Ne+S.neSpike+S.nN};
+    prad:S.Prad+S.prSpike+MP.ELMR*S.elmB+S.nP,ne:S.Ne+S.neSpike+S.nN};
 }
 /*MODEL-END*/
   return {

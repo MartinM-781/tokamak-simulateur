@@ -19,10 +19,14 @@ function runShot(P, seed) {
   const rng = M.mulberry32(seed);
   const g = M.makeGauss(rng);
   const S = M.newState(P);
-  const out = { t: [], mir: [], te: [], ip: [], prad: [], ne: [], teEtat: [], dents: 0 };
+  const out = { t: [], mir: [], te: [], ip: [], prad: [], ne: [], teEtat: [], dents: 0, elms: 0 };
   let tePrec = S.Te;
+  let elmPrec = 0;
   while (S.t < M.MP.TMAX && !(S.ended && S.t > S.tEnd + 60)) {
     const meas = M.stepModel(S, P, g, DT);
+    // Bouffée ELM : remontée brutale de l'enveloppe (déclenchement).
+    if (S.elmB > elmPrec + 0.3) out.elms++;
+    elmPrec = S.elmB;
     out.t.push(S.t);
     out.mir.push(meas.mir);
     out.te.push(meas.te);
@@ -130,6 +134,21 @@ test('sain (seed 42) : P_rad bas et densité stable sur tout le tir', () => {
   assert.ok(Math.max(...prad) < 0.3, `prad max=${Math.max(...prad)}`);
   assert.ok(Math.min(...ne) > 0.9 && Math.max(...ne) < 1.1,
     `ne ∈ [${Math.min(...ne)}, ${Math.max(...ne)}]`);
+});
+
+test('ELM (seed 42, sain) : bouffées présentes par défaut, cadence plausible', () => {
+  // Période ELMP=35 ms jitterée ⇒ ~70 bouffées attendues sur 2500 ms.
+  const { elms } = runShot(SAIN, 42);
+  assert.ok(elms >= 40 && elms <= 120, `bouffées ELM=${elms}`);
+});
+
+test('ELM (seed 42, sain) : confondeur visible sur le mirnov, désactivable', () => {
+  const rms = arr => Math.sqrt(arr.reduce((s, x) => s + x * x, 0) / arr.length);
+  const avec = runShot(SAIN, 42);
+  const sans = runShot({ ...SAIN, elm: 0 }, 42);
+  assert.equal(sans.elms, 0, 'elm=0 doit désactiver les bouffées');
+  assert.ok(rms(avec.mir) > 1.15 * rms(sans.mir),
+    `RMS mirnov avec ELM=${rms(avec.mir)} vs sans=${rms(sans.mir)}`);
 });
 
 test('reproductibilité : même seed ⇒ séries strictement identiques', () => {
