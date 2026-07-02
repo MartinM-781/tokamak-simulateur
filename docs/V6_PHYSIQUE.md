@@ -78,6 +78,35 @@ distributions JET (tests).
 - `te0_keV` (ECE central), `ip_MA`, `prad_MW` (bolométrie), `ne_1e19`
   (interférométrie, bouffée d'influx au TQ).
 
+## Palier B — couche diagnostics (model/tokamak_diags_v6.js)
+
+Transforme l'état 0D en signaux multi-canaux de salle de contrôle
+(`scripts/generate_v6_diags.js`, CSV.gz à 10 kHz, géométrie des capteurs dans
+le manifest) :
+
+- **Réseau Mirnov** (8 bobines poloïdales, r = 1.15 a) : dB/dt par bobine
+  = Σ_modes δB_m·Ω·sin(m·θ_j − φ_m), avec décroissance géométrique
+  (r_s/b)^(m+1). La structure m est dans les données brutes : la
+  décomposition en nombres de mode est à la charge de l'analyse, comme sur
+  machine. Signal ∝ Ω ⇒ muet après verrouillage.
+- **Boucles à selle** (4, toroïdales) : δB_r STATIQUE ∝ (w/a)², n=1 —
+  l'équivalent du détecteur de mode verrouillé réel, qui continue de voir
+  l'îlot quand les Mirnov se taisent. Calibré ~2 mT à w = 10 cm (JET-like).
+- **ECE** (6 rayons) : profil Te(r) = Te0·(1−r²/a²)^1.2, dents de scie
+  inversées autour du rayon d'inversion (r_inv = 0.4 a : le cœur chute,
+  l'extérieur reçoit le pulse de chaleur), aplatissement local du canal
+  traversé par l'îlot q=2.
+- **Bolométrie** : P_rad filtrée au premier ordre (τ = 4 ms) — le flash du
+  quench est lissé et retardé, comme sur un bolomètre à feuille.
+- **Interférométrie** : densité intégrée de corde centrale (10¹⁹ m⁻²).
+- Bruit AR(1) par canal, correct en dt ; anti-repliement garanti par le
+  générateur (f₀ ≤ 2.8 kHz pour 10 kHz de cadence, harmonique 3/2 comprise).
+
+Compromis assumé vs machine réelle : cadence 10 kHz (bobines réelles :
+250 kHz–2 MHz) et 8+4 capteurs (réels : dizaines) — suffisant pour résoudre
+la rotation des modes simulés et faire de la décomposition m/n, pas pour la
+MHD rapide qui n'existe pas dans un 0D.
+
 ## Références utilisées pour les cibles de tests
 
 - ITER Physics Basis (Nucl. Fusion 39, 1999) : scaling IPB98(y,2) ;
