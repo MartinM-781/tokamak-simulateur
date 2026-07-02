@@ -128,6 +128,20 @@ test('classique (seed 42) : bouffée de densité au quench thermique', () => {
   assert.ok(max >= 1.2 && max <= 1.8, `ne max=${max}`);
 });
 
+test('classique (seed 42) : montée radiative — P_rad haut entre verrouillage et quench', () => {
+  // Ajouté après test par mutation : PRW→0 (perte de la montée ∝ W21+W32)
+  // survivait à toute la suite, car les bornes sur prad étaient toutes
+  // supérieures et les bouffées ELM (coupées dès le verrouillage) masquaient
+  // la perte avant tLock. Références mesurées sur [tLock, tTQ) : max prad
+  // = 0.233 avec PRW=0.6, contre 0.077 avec PRW=0 (marge ×3 sur le seuil).
+  const { t, prad, S } = runShot(CLASSIQUE, 42);
+  let max = 0;
+  for (let i = 0; i < t.length; i++) {
+    if (t[i] >= S.tLock && t[i] < S.tTQ && prad[i] > max) max = prad[i];
+  }
+  assert.ok(max >= 0.15, `max prad sur [tLock, tTQ)=${max}`);
+});
+
 test('sain (seed 42) : P_rad bas et densité stable sur tout le tir', () => {
   // Références mesurées : prad max = 0.113, ne ∈ [0.970, 1.026].
   const { prad, ne } = runShot(SAIN, 42);

@@ -38,6 +38,12 @@ de disruptions par détection d'anomalies sur séries temporelles.
   `makeGauss`, `newState`, `stepModel`. Double export : `window.TokamakModel`
   en navigateur ET `module.exports` en Node — pas de module ES.
 - `dt = 0.05 ms` partout (page web, tests, générateur).
+- Contrat CSV : le format d'export (colonnes, `toFixed`, stride, lignes `#`,
+  saut de ligne final) est dupliqué entre `buildCsv()` de
+  `web/tokamak_v5.html` et celui de `scripts/generate.js` — toute
+  modification doit être appliquée aux deux ET aux regex de
+  `tests/generate.test.js`. Les deux sorties doivent rester identiques
+  octet pour octet (parité vérifiée par exécution le 2026-07-02).
 - Le bruit est purement observationnel (AR(1) sur les mesures) : la dynamique
   d'état est déterministe à paramètres donnés ; toute la stochasticité est
   reproductible par seed (`mulberry32`).

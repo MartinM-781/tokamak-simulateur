@@ -133,6 +133,10 @@ Modèle v5 (0D, unités arbitraires, t en ms) — Rutherford saturé&nbsp;: dW/d
 <script>
 /* Modèle physique désormais partagé : model/tokamak_model.js
    (bloc MODEL-BEGIN/MODEL-END, exposé ici via window.TokamakModel). */
+if(typeof TokamakModel==='undefined'){
+  document.getElementById('status').textContent='ERREUR — model/tokamak_model.js introuvable';
+  throw new Error('TokamakModel absent : cette page se charge depuis le dépôt complet (web/ + model/).');
+}
 var MP=TokamakModel.MP,mulberry32=TokamakModel.mulberry32,makeGauss=TokamakModel.makeGauss,
     newState=TokamakModel.newState,stepModel=TokamakModel.stepModel;
 (function(){
@@ -309,7 +313,7 @@ var MP=TokamakModel.MP,mulberry32=TokamakModel.mulberry32,makeGauss=TokamakModel
   function exportCsv(){
     var csv=buildCsv();
     try{
-      var blob=new Blob([csv],{type:'text/csv'});
+      var blob=new Blob([csv+'\n'],{type:'text/csv'});
       var a=document.createElement('a');
       a.href=URL.createObjectURL(blob);
       a.download='tir_'+seed+'_tokamak_v5.csv';

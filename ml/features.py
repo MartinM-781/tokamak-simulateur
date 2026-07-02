@@ -5,8 +5,8 @@ Usage :
 
 Écrit <run>/features.csv : une ligne par fenêtre, horodatée à la FIN de la
 fenêtre (aucun regard vers le futur). Features calculées sur les seuls canaux
-MESURÉS (mirnov, te, ip) ; les colonnes de vérité terrain (label, phase, t_tq)
-ne sont reportées que pour l'étiquetage et l'évaluation en aval.
+MESURÉS (mirnov, te, ip, prad, ne) ; les colonnes de vérité terrain (label,
+phase, t_tq) ne sont reportées que pour l'étiquetage et l'évaluation en aval.
 """
 from __future__ import annotations
 
@@ -63,7 +63,9 @@ def features_tir(df: pd.DataFrame, win: int, hop: int) -> pd.DataFrame:
     freq_khz = croisements / (2.0 * win * SAMPLE_MS)
     te_slope = pente(w_te, SAMPLE_MS)
     # Écart d'ip à sa médiane mobile : médiane de la fenêtre vs médiane des
-    # 100 ms qui PRÉCÈDENT la fenêtre (baseline non contaminée par la fenêtre).
+    # ~100 ms précédant le début de fenêtre. Causal (aucun échantillon futur) ;
+    # pour les 4 premières fenêtres du tir, faute d'historique, la baseline
+    # chevauche la fenêtre (ip_dev ≈ 0 sur la toute première).
     ip_med = pd.Series(ip).rolling(1000, min_periods=win).median().to_numpy()
     debut = fin - (win - 1)
     baseline = ip_med[np.maximum(debut - 1, win - 1)]
@@ -99,6 +101,12 @@ def main() -> None:
     win = int(round(args.win_ms / SAMPLE_MS))
     hop = int(round(args.step_ms / SAMPLE_MS))
     manifest = charge_manifest(args.run_dir)
+    reel = manifest["dt_ms"] * manifest["csv_stride"]
+    if abs(reel - SAMPLE_MS) > 1e-9:
+        raise SystemExit(
+            f"Échantillonnage du run inattendu : dt_ms×csv_stride = {reel} ms "
+            f"≠ SAMPLE_MS = {SAMPLE_MS} ms (features.py suppose du 0.1 ms)."
+        )
 
     morceaux = []
     for tir in manifest["tirs"]:

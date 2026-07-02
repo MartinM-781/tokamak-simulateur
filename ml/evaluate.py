@@ -211,10 +211,12 @@ def main() -> None:
         "",
         "- Features par fenêtres glissantes de 20 ms (pas 5 ms), horodatées fin de fenêtre,",
         "  sur les seuls canaux mesurés : RMS Mirnov, fréquence par passages à zéro,",
-        "  pente de T_e, écart d'I_p à sa médiane mobile, et leurs dérivées.",
+        "  pente de T_e, écart d'I_p à sa médiane mobile, moyenne et pente de P_rad",
+        "  et de la densité, et les dérivées inter-fenêtres.",
         "- Détecteurs z-score robustes (médiane/MAD appris sur les tirs sains du train)",
-        "  mono-canal (`z_mirnov`, `z_te`, `z_ip`) et multi-canal (`z_multi` = max des z),",
-        "  plus une régression logistique (précurseur = fenêtre dans les 300 ms avant t_tq).",
+        "  mono-canal (`z_mirnov`, `z_te`, `z_ip`, `z_prad`, `z_ne`) et multi-canal",
+        "  (`z_multi` = max des z), plus une régression logistique (précurseur =",
+        "  fenêtre dans les 300 ms avant t_tq).",
         f"- Alarme = score ≥ seuil sur {K_CONSECUTIFS} fenêtres consécutives. Seuil calibré",
         f"  sur le train (fausses alarmes ≤ {FAR_CIBLE:.0%} des tirs sains du train).",
         "- Sur tir disruptif, seules les fenêtres antérieures à t_tq comptent : une",
@@ -229,10 +231,22 @@ def main() -> None:
     ]
     for det in DETECTEURS:
         p = pf[det]
+        # Seuil en pleine précision : la colonne p10 y est très sensible au
+        # voisinage du point de fonctionnement (un seuil arrondi à 3 chiffres
+        # ne permet pas de reproduire ces valeurs).
         lignes.append(
-            f"| {det} | {p['seuil']:.3g} | {p['far']:.0%} | {p['detection']:.0%} "
+            f"| {det} | {p['seuil']:.10g} | {p['far']:.0%} | {p['detection']:.0%} "
             f"| {p['alerte_mediane']:.1f} | {p['alerte_p10']:.1f} |"
         )
+    depasse = [d for d in DETECTEURS if pf[d]["far"] > FAR_CIBLE]
+    if depasse:
+        lignes += [
+            "",
+            "Nota : " + ", ".join(f"`{d}` ({pf[d]['far']:.0%})" for d in depasse) +
+            f" dépasse{'nt' if len(depasse) > 1 else ''} la cible de {FAR_CIBLE:.0%} de fausses"
+            " alarmes hors échantillon (seuil calibré sur le train seul ;"
+            f" avec {n_sains} tirs sains au test, l'incertitude binomiale est large).",
+        ]
     top_dom = " puis ".join(f"`{k[2:]}` ({v:.0%})" for k, v in dominantes.head(2).items())
     lignes += [
         "",

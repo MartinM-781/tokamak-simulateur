@@ -6,10 +6,12 @@ Dataset : `data/run01` — test : 30 tirs disruptifs, 30 tirs sains (split PAR T
 
 - Features par fenêtres glissantes de 20 ms (pas 5 ms), horodatées fin de fenêtre,
   sur les seuls canaux mesurés : RMS Mirnov, fréquence par passages à zéro,
-  pente de T_e, écart d'I_p à sa médiane mobile, et leurs dérivées.
+  pente de T_e, écart d'I_p à sa médiane mobile, moyenne et pente de P_rad
+  et de la densité, et les dérivées inter-fenêtres.
 - Détecteurs z-score robustes (médiane/MAD appris sur les tirs sains du train)
-  mono-canal (`z_mirnov`, `z_te`, `z_ip`) et multi-canal (`z_multi` = max des z),
-  plus une régression logistique (précurseur = fenêtre dans les 300 ms avant t_tq).
+  mono-canal (`z_mirnov`, `z_te`, `z_ip`, `z_prad`, `z_ne`) et multi-canal
+  (`z_multi` = max des z), plus une régression logistique (précurseur =
+  fenêtre dans les 300 ms avant t_tq).
 - Alarme = score ≥ seuil sur 3 fenêtres consécutives. Seuil calibré
   sur le train (fausses alarmes ≤ 5% des tirs sains du train).
 - Sur tir disruptif, seules les fenêtres antérieures à t_tq comptent : une
@@ -21,13 +23,15 @@ Dataset : `data/run01` — test : 30 tirs disruptifs, 30 tirs sains (split PAR T
 
 | Détecteur | Seuil | Fausses alarmes (test) | Détection | Alerte médiane (ms) | Alerte p10 (ms) |
 |---|---|---|---|---|---|
-| z_mirnov | 12.9 | 0% | 97% | 87.7 | 57.3 |
-| z_te | 2.46 | 0% | 0% | nan | nan |
-| z_ip | 6.16 | 0% | 0% | nan | nan |
-| z_prad | 4.25 | 3% | 100% | 67.7 | 56.2 |
-| z_ne | 5.74 | 0% | 0% | nan | nan |
-| z_multi | 12.9 | 0% | 100% | 87.0 | 39.4 |
-| logistique | 0.713 | 10% | 100% | 110.3 | 84.6 |
+| z_mirnov | 12.85771532 | 0% | 97% | 87.7 | 57.3 |
+| z_te | 2.462030803 | 0% | 0% | nan | nan |
+| z_ip | 6.155282438 | 0% | 0% | nan | nan |
+| z_prad | 4.245743179 | 3% | 100% | 67.7 | 56.2 |
+| z_ne | 5.744214795 | 0% | 0% | nan | nan |
+| z_multi | 12.85771532 | 0% | 100% | 87.0 | 39.4 |
+| logistique | 0.7131131289 | 10% | 100% | 110.3 | 84.6 |
+
+Nota : `logistique` (10%) dépasse la cible de 5% de fausses alarmes hors échantillon (seuil calibré sur le train seul ; avec 30 tirs sains au test, l'incertitude binomiale est large).
 
 ## Comportement pendant le mode verrouillé (phase = 2, Mirnov muette)
 
