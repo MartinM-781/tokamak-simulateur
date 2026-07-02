@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>Tokamak — Simulateur pédagogique</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0B1118; --panel:#111A24; --screen:#0D141D; --line:#22303E;
+  --text:#E9EEF3; --sec:#93A4B4; --mut:#5E7284;
+  --plasma:#F272AC; --reson:#FF7A5C; --warn:#E8B45A;
+  --steel:#5C89B8; --cuivre:#D9975B;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--text)}
+body{font-family:'IBM Plex Mono',ui-monospace,monospace;padding:28px clamp(14px,4vw,44px) 40px;max-width:1180px;margin:0 auto}
+.eyebrow-row{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.eyebrow{font-size:11px;letter-spacing:.22em;color:var(--mut);text-transform:uppercase}
+.status{font-size:11px;letter-spacing:.1em;padding:6px 10px;border:1px solid var(--line);border-radius:999px;color:var(--sec);white-space:nowrap}
+h1{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:clamp(24px,4vw,34px);letter-spacing:-.02em;margin:10px 0 8px}
+.sub{font-size:12.5px;line-height:1.75;color:var(--sec);max-width:78ch;margin:0 0 26px}
+.sub b{color:var(--text);font-weight:600}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px}
+a.card{display:block;background:var(--panel);border:1px solid var(--line);border-radius:12px;
+  padding:18px 20px;text-decoration:none;color:inherit;transition:border-color .15s}
+a.card:hover{border-color:var(--sec)}
+a.card:focus-visible{outline:1px solid var(--steel);outline-offset:2px}
+.num{font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--mut);margin:0 0 10px;display:flex;justify-content:space-between;gap:10px}
+.num .tag{color:var(--plasma)}
+a.card h2{font-family:'Space Grotesk',sans-serif;font-weight:500;font-size:17px;letter-spacing:-.01em;margin:0 0 8px;color:var(--text)}
+a.card p{font-size:11.5px;line-height:1.7;color:var(--sec);margin:0}
+a.card.v1:hover{border-color:var(--steel)} a.card.v2:hover{border-color:var(--cuivre)}
+a.card.v3:hover{border-color:var(--warn)} a.card.v4:hover{border-color:var(--reson)}
+a.card.v5:hover{border-color:var(--plasma)}
+footer{font-size:11.5px;line-height:1.8;color:var(--mut);margin-top:26px;border-top:1px solid var(--line);padding-top:14px;max-width:94ch}
+footer code{color:var(--sec)}
+</style>
+</head>
+<body>
+<header>
+  <div class="eyebrow-row">
+    <span class="eyebrow">Tokamak · Simulateur · Sommaire</span>
+    <span class="status">5 MODULES</span>
+  </div>
+  <h1>La physique des tokamaks, en cinq actes</h1>
+  <p class="sub">Cinq pages autonomes — aucune installation, chaque fichier s'ouvre directement dans le navigateur. La progression suit la vraie chaîne causale d'une <b>disruption</b>&nbsp;: la géométrie du champ (v1), ce qu'elle fait aux particules (v2), l'équilibre qui tient tout (v3), les îlots qui le rongent (v4), et l'effondrement complet (v5) — qui génère des <b>signaux synthétiques labellisés</b> pour entraîner des détecteurs d'anomalies.</p>
+</header>
+
+<main class="grid">
+  <a class="card v1" href="tokamak_v1.html">
+    <p class="num"><span>Acte I</span><span>q(r)</span></p>
+    <h2>Lignes de champ &amp; facteur de sécurité</h2>
+    <p>L'enroulement hélicoïdal du champ, les surfaces rationnelles et irrationnelles, et pourquoi q&nbsp;=&nbsp;2 est une ligne de faille.</p>
+  </a>
+  <a class="card v2" href="tokamak_v2.html">
+    <p class="num"><span>Acte II</span><span>Boris</span></p>
+    <h2>Orbites de particules — piégeage &amp; bananes</h2>
+    <p>Une vraie particule intégrée pas à pas : miroir magnétique, orbites bananes, et la dérive verticale si le courant plasma disparaît.</p>
+  </a>
+  <a class="card v3" href="tokamak_v3.html">
+    <p class="num"><span>Acte III</span><span>∇P = j×B</span></p>
+    <h2>Équilibre MHD — Shafranov &amp; limites</h2>
+    <p>Profils de pression, courant et q, décalage de Shafranov, et les limites opérationnelles qui bornent le domaine de vol.</p>
+  </a>
+  <a class="card v4" href="tokamak_v4.html">
+    <p class="num"><span>Acte IV</span><span>K → 1</span></p>
+    <h2>Îlots magnétiques &amp; chaos de Chirikov</h2>
+    <p>Le tearing mode ouvre des îlots sur les surfaces rationnelles ; quand les chaînes se recouvrent, le champ devient chaotique.</p>
+  </a>
+  <a class="card v5" href="tokamak_v5.html">
+    <p class="num"><span>Acte V — Finale</span><span class="tag">datasets ML</span></p>
+    <h2>Disruption — de la graine d'îlot à l'extinction</h2>
+    <p>Rutherford, verrouillage de mode, quench thermique puis de courant : chaque tir produit des signaux bruités labellisés, exportables en CSV.</p>
+  </a>
+</main>
+
+<footer>
+Banc d'entraînement ML&nbsp;: le modèle physique de la v5 (<code>model/tokamak_model.js</code>) tourne tel quel en Node — <code>node scripts/generate.js --shots 200 --out data/run01</code> génère un dataset complet (CSV par tir + manifest), <code>npm test</code> garde la physique sous scellés, et <code>ml/</code> contient la baseline de détection précoce (features fenêtrées, z-scores, régression logistique) avec ses résultats dans <code>ml/RESULTS.md</code>.
+</footer>
+</body>
+</html>
