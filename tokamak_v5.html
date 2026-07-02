@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>Tokamak V5 — Disruption : de la graine d'îlot à l'extinction</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0B1118; --panel:#111A24; --screen:#0D141D; --line:#22303E;
+  --text:#E9EEF3; --sec:#93A4B4; --mut:#5E7284;
+  --plasma:#F272AC; --reson:#FF7A5C; --warn:#E8B45A;
+  --steel:#5C89B8; --cuivre:#D9975B;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--text)}
+body{font-family:'IBM Plex Mono',ui-monospace,monospace;padding:28px clamp(14px,4vw,44px) 40px;max-width:1180px;margin:0 auto}
+.eyebrow-row{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.eyebrow{font-size:11px;letter-spacing:.22em;color:var(--mut);text-transform:uppercase}
+.status{font-size:11px;letter-spacing:.1em;padding:6px 10px;border:1px solid var(--line);border-radius:999px;color:var(--sec);white-space:nowrap}
+h1{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:clamp(24px,4vw,34px);letter-spacing:-.02em;margin:10px 0 8px}
+.sub{font-size:12.5px;line-height:1.75;color:var(--sec);max-width:78ch;margin:0 0 22px}
+.sub b{color:var(--text);font-weight:600}
+.controls{display:flex;gap:18px;flex-wrap:wrap;align-items:flex-end;margin:0 0 16px}
+.sl{flex:1;min-width:180px}
+.sl-head{display:flex;justify-content:space-between;font-size:11px;letter-spacing:.06em;color:var(--sec);margin-bottom:8px}
+.sl-head .val{font-weight:600;color:var(--text)}
+.u-d{color:var(--plasma)} .u-f{color:var(--steel)} .u-b{color:var(--cuivre)} .u-n{color:var(--text)}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:2px;background:var(--line);border-radius:1px;outline:none;margin:8px 0}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:7px;height:19px;border-radius:2px;background:var(--sec);cursor:pointer}
+input[type=range]::-moz-range-thumb{width:7px;height:19px;border:none;border-radius:2px;background:var(--sec);cursor:pointer}
+.sl.d input::-webkit-slider-thumb{background:var(--plasma)} .sl.d input::-moz-range-thumb{background:var(--plasma)}
+.sl.f input::-webkit-slider-thumb{background:var(--steel)} .sl.f input::-moz-range-thumb{background:var(--steel)}
+.sl.b input::-webkit-slider-thumb{background:var(--cuivre)} .sl.b input::-moz-range-thumb{background:var(--cuivre)}
+.sl.n input::-webkit-slider-thumb{background:var(--text)} .sl.n input::-moz-range-thumb{background:var(--text)}
+input[type=range]:focus-visible{outline:1px solid var(--steel);outline-offset:6px;border-radius:2px}
+.btnrow{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:0 0 18px}
+.btnrow .lead{font-size:11px;letter-spacing:.08em;color:var(--mut);margin-right:2px}
+.btn{font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;
+  background:transparent;border:1px solid var(--line);color:var(--sec);padding:8px 12px;border-radius:6px;cursor:pointer}
+.btn:hover{border-color:var(--sec);color:var(--text)}
+.btn:focus-visible{outline:1px solid var(--steel);outline-offset:2px}
+.btn.danger{border-color:#4A2A24;color:var(--reson)}
+.btn.danger:hover{border-color:var(--reson)}
+.btn.accent{border-color:#274156;color:var(--steel)}
+.btn.accent:hover{border-color:var(--steel);color:var(--text)}
+.spacer{margin-left:auto}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px}
+.panel-label{font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--mut);margin:0 0 10px;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.panel canvas{display:block;width:100%;border-radius:8px;background:var(--screen)}
+.readouts{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px;margin:14px 0 0}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+.card .k{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--mut);margin:0 0 8px}
+.card .v{font-size:25px;font-weight:500;margin:0;line-height:1.15}
+.card .s{font-size:11px;color:var(--mut);margin:6px 0 0;min-height:14px}
+details{margin-top:16px;border:1px solid var(--line);border-radius:10px;background:var(--panel)}
+summary{cursor:pointer;padding:12px 16px;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--sec)}
+.csvwrap{padding:0 16px 16px}
+textarea{width:100%;height:180px;background:var(--screen);color:var(--sec);border:1px solid var(--line);border-radius:8px;
+  font-family:'IBM Plex Mono',monospace;font-size:10.5px;padding:10px;resize:vertical}
+footer{font-size:11.5px;line-height:1.8;color:var(--mut);margin-top:26px;border-top:1px solid var(--line);padding-top:14px;max-width:94ch}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<header>
+  <div class="eyebrow-row">
+    <span class="eyebrow">Tokamak · Simulateur · V5 · Finale</span>
+    <span class="status" id="status">AMORÇAGE</span>
+  </div>
+  <h1>Disruption — de la graine d'îlot à l'extinction</h1>
+  <p class="sub">Toute la chaîne des v1–v4, mise en mouvement&nbsp;: un îlot 2/1 croît (équation de <b>Rutherford</b>, accélérée par η&nbsp;∝&nbsp;T_e^(−3/2)), freine sa rotation par courants de paroi (∝&nbsp;W²) jusqu'au <b>verrouillage</b> — la sonde Mirnov se tait pendant que le mode continue de grossir. Le couplage nourrit le 3/2, <b>Chirikov K&nbsp;→&nbsp;1</b>, quench thermique en ~1&nbsp;ms, pic d'I_p, puis quench de courant. Chaque tir génère des <b>signaux bruités labellisés</b>, exportables en CSV — ton terrain d'entraînement pour la détection d'anomalies.</p>
+</header>
+
+<section class="controls">
+  <div class="sl d">
+    <div class="sl-head"><span class="u-d">Instabilité tearing Δ′₀</span><span class="val" id="vD">+1.0</span></div>
+    <input type="range" id="sD" min="-1" max="3" step="0.1" value="1" aria-label="Instabilité tearing">
+  </div>
+  <div class="sl f">
+    <div class="sl-head"><span class="u-f">Rotation initiale f₀</span><span class="val" id="vF">3.0 kHz</span></div>
+    <input type="range" id="sF" min="1" max="6" step="0.1" value="3" aria-label="Rotation initiale">
+  </div>
+  <div class="sl b">
+    <div class="sl-head"><span class="u-b">Freinage paroi c_b</span><span class="val" id="vB">20</span></div>
+    <input type="range" id="sB" min="5" max="40" step="1" value="20" aria-label="Freinage paroi">
+  </div>
+  <div class="sl n">
+    <div class="sl-head"><span class="u-n">Bruit de mesure σ</span><span class="val" id="vN">1.5 %</span></div>
+    <input type="range" id="sN" min="0" max="5" step="0.1" value="1.5" aria-label="Bruit de mesure">
+  </div>
+</section>
+
+<div class="btnrow">
+  <span class="lead">Scénarios&nbsp;:</span>
+  <button class="btn" id="bSafe">Tir sain</button>
+  <button class="btn" id="bClassic">Disruption classique</button>
+  <button class="btn" id="bLock">Verrouillage précoce</button>
+  <button class="btn danger" id="bFastG">Croissance rapide</button>
+  <span class="spacer"></span>
+  <button class="btn" id="bSpeed">Vitesse ×4</button>
+  <button class="btn" id="bPause">Pause</button>
+  <button class="btn" id="bNew">Nouveau tir</button>
+  <button class="btn accent" id="bCsv">Exporter CSV</button>
+</div>
+
+<div class="panel">
+  <p class="panel-label"><span>Signaux — fenêtre glissante 300 ms</span><span id="shotLab">TIR #42</span></p>
+  <canvas id="cc" height="520"></canvas>
+</div>
+
+<section class="readouts">
+  <div class="card"><p class="k">Phase</p><p class="v" id="rPh" style="font-size:16px;line-height:1.5">—</p><p class="s" id="rPhs"></p></div>
+  <div class="card"><p class="k">Temps t</p><p class="v" id="rT">0 ms</p><p class="s" id="rPts">0 points</p></div>
+  <div class="card"><p class="k">Chirikov K</p><p class="v" id="rK">—</p><p class="s">quench thermique si K ≥ 1</p></div>
+  <div class="card"><p class="k">Fréquence mode</p><p class="v" id="rF">—</p><p class="s" id="rFs">rotation du 2/1</p></div>
+</section>
+
+<details id="csvBox">
+  <summary>Données CSV — aperçu &amp; copie manuelle</summary>
+  <div class="csvwrap">
+    <textarea id="csvTa" spellcheck="false" aria-label="Contenu CSV"></textarea>
+  </div>
+</details>
+
+<footer>
+Modèle v5 (0D, unités arbitraires, t en ms) — Rutherford saturé&nbsp;: dW/dt&nbsp;=&nbsp;c_R·η̂(T_e)·Δ′_eff·(1−W/W_sat), η̂&nbsp;=&nbsp;T_e^(−3/2)&nbsp;; verrouillage par couple de paroi ∝&nbsp;c_b·W²·Ω, perte d'écrantage après verrouillage (Δ′&nbsp;boosté)&nbsp;; couplage 2/1&nbsp;→&nbsp;3/2&nbsp;; r_s et Δr_s hérités de la v4. T_e&nbsp;: confinement dégradé par les îlots, dents de scie (q₀&nbsp;&lt;&nbsp;1, v3) tant que le cœur est chaud, effondrement en ~0,8&nbsp;ms au quench. I_p&nbsp;: pic de quench (aplatissement du profil) puis décroissance L/R avec τ&nbsp;∝&nbsp;T_e^(3/2). Mirnov&nbsp;∝&nbsp;W²·Ω (rappel v4&nbsp;: W&nbsp;∝&nbsp;√δB&nbsp;⇔&nbsp;δB&nbsp;∝&nbsp;W²). Bruit AR(1) reproductible par graine. Colonnes CSV&nbsp;: mesures (mirnov, te, ip) + vérité terrain (w21, w32, k, f, locked, phase 0–5). Ce n'est pas un code de production — c'est un générateur pédagogique de précurseurs plausibles.
+</footer>
+
+<script>
+/*MODEL-BEGIN*/
+var MP={CR:0.0008,WSAT:0.35,W32SAT:0.25,WSEED:0.004,W32SEED:0.003,
+  CPL:10,D32:-0.3,LBOOST:1.5,TAUV:20,LOCKFRAC:0.15,TAULOCK:1.5,
+  TAUE:40,DEG:1.2,SAWP:24,SAWDROP:0.92,SAWTE:0.55,
+  TQTAU:0.8,TQTE:0.03,CQTE:0.15,SPIKE0:0.08,SPTAU:1.2,CQBASE:6,CQK:50,ENDIP:0.02,
+  DRS:0.306,MIRA:0.4,TMAX:2500};
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;var t=Math.imul(a^a>>>15,1|a);
+  t=t+Math.imul(t^t>>>7,61|t)^t;return ((t^t>>>14)>>>0)/4294967296;};}
+function makeGauss(rng){var spare=null;return function(){
+  if(spare!==null){var s=spare;spare=null;return s;}
+  var u=0,v=0;while(u===0)u=rng();while(v===0)v=rng();
+  var m=Math.sqrt(-2*Math.log(u)),th=2*Math.PI*v;
+  spare=m*Math.sin(th);return m*Math.cos(th);};}
+function newState(P){
+  return {t:0,W21:MP.WSEED,W32:MP.W32SEED,Om:2*Math.PI*P.f0,Om0:2*Math.PI*P.f0,
+    locked:false,tq:false,cq:false,ended:false,
+    Te:1,Ip:1,spike:0,sawT:0,rotPh:0,K:0,phaseId:0,
+    nM:0,nT:0,nI:0,
+    tLock:-1,tTQ:-1,tCQ:-1,tEnd:-1};
+}
+function stepModel(S,P,g,dt){
+  if(S.ended){
+    S.t+=dt;
+    S.Te+=(0-S.Te)*dt/20;S.Ip+=(0-S.Ip)*dt/20;
+    var sg0=(P.noise/100)*0.2431;
+    S.nM=0.97*S.nM+sg0*0.8*g();S.nT=0.97*S.nT+sg0*g();S.nI=0.97*S.nI+sg0*0.6*g();
+    return {mir:S.nM,te:S.Te+S.nT,ip:S.Ip+S.nI};
+  }
+  var eta=Math.pow(Math.max(S.Te,0.02),-1.5);
+  var dEff=P.d0+(S.locked?MP.LBOOST:0);
+  S.W21+=MP.CR*eta*dEff*(1-S.W21/MP.WSAT)*dt;
+  if(S.W21<MP.WSEED)S.W21=MP.WSEED;
+  if(S.W21>MP.WSAT)S.W21=MP.WSAT;
+  var d32=MP.D32+MP.CPL*S.W21;
+  S.W32+=MP.CR*eta*d32*(1-S.W32/MP.W32SAT)*dt;
+  if(S.W32<MP.W32SEED)S.W32=MP.W32SEED;
+  if(S.W32>MP.W32SAT)S.W32=MP.W32SAT;
+  if(!S.locked){
+    S.Om+=((S.Om0-S.Om)/MP.TAUV-P.cb*S.W21*S.W21*S.Om)*dt;
+    if(S.Om<MP.LOCKFRAC*S.Om0){S.locked=true;S.tLock=S.t;}
+  }else{S.Om+=(0-S.Om)*dt/MP.TAULOCK;}
+  S.K=(S.W21+S.W32)/MP.DRS;
+  if(!S.tq&&S.K>=1){S.tq=true;S.tTQ=S.t;S.spike=MP.SPIKE0;}
+  if(S.tq){S.Te+=(MP.TQTE-S.Te)*dt/MP.TQTAU;}
+  else{
+    var teq=Math.max(0.1,1-MP.DEG*(S.W21+S.W32));
+    S.Te+=(teq-S.Te)*dt/MP.TAUE;
+    S.sawT+=dt;
+    if(S.sawT>MP.SAWP&&S.Te>MP.SAWTE){S.sawT=0;S.Te*=MP.SAWDROP;}
+  }
+  if(S.tq&&!S.cq&&S.Te<MP.CQTE){S.cq=true;S.tCQ=S.t;}
+  S.spike*=Math.exp(-dt/MP.SPTAU);
+  if(S.cq){
+    var tcq=MP.CQBASE+MP.CQK*Math.pow(Math.max(S.Te,0.02),1.5);
+    S.Ip+=(-S.Ip/tcq)*dt;
+    if(S.Ip<MP.ENDIP){S.Ip=MP.ENDIP;S.ended=true;S.tEnd=S.t;}
+  }
+  S.rotPh+=S.Om*dt;
+  var mir=0;
+  if(!S.ended){
+    mir=MP.MIRA*Math.pow(S.W21/0.05,2)*(S.Om/S.Om0)*Math.sin(S.rotPh)
+       +0.35*MP.MIRA*Math.pow(S.W32/0.05,2)*(S.Om/S.Om0)*Math.sin(1.5*S.rotPh+1.1);
+    if(mir>3)mir=3;if(mir<-3)mir=-3;
+  }
+  var sg=(P.noise/100)*0.2431;
+  S.nM=0.97*S.nM+sg*0.8*g();
+  S.nT=0.97*S.nT+sg*g();
+  S.nI=0.97*S.nI+sg*0.6*g();
+  if(S.t<S.tLock||S.tLock<0){if(S.W21>=0.03)S.phaseId=1;else S.phaseId=0;}
+  if(S.locked)S.phaseId=2;
+  if(S.tq)S.phaseId=3;
+  if(S.cq)S.phaseId=4;
+  if(S.ended)S.phaseId=5;
+  S.t+=dt;
+  return {mir:mir+S.nM,te:S.Te+S.nT,ip:S.Ip+S.spike+S.nI};
+}
+/*MODEL-END*/
+(function(){
+  var C={screen:'#0D141D',line:'#22303E',wire:'#3A4C5E',mut:'#5E7284',sec:'#93A4B4',text:'#E9EEF3',
+         plasma:'#F272AC',reson:'#FF7A5C',warn:'#E8B45A',steel:'#5C89B8',cuivre:'#D9975B'};
+  var PHCOL=[C.sec,C.warn,C.cuivre,C.reson,C.reson,C.mut];
+  var PHTXT=['PLASMA SAIN','PR\u00c9CURSEUR \u2014 \u00ceLOT EN CROISSANCE','MODE VERROUILL\u00c9 \u2014 MIRNOV MUETTE',
+             'QUENCH THERMIQUE','QUENCH DE COURANT','PLASMA \u00c9TEINT'];
+  var PHSUB=['dents de scie normales','f chute, amplitude monte','le danger devient invisible',
+             'T_e s\u2019effondre \u2014 pic d\u2019I_p','d\u00e9croissance L/R','fin du tir \u2014 exporte le CSV'];
+  var RM=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var cc=document.getElementById('cc'),ctx=cc.getContext('2d');
+  var sD=document.getElementById('sD'),sF=document.getElementById('sF'),
+      sB=document.getElementById('sB'),sN=document.getElementById('sN');
+  var vD=document.getElementById('vD'),vF=document.getElementById('vF'),
+      vB=document.getElementById('vB'),vN=document.getElementById('vN');
+  var rPh=document.getElementById('rPh'),rPhs=document.getElementById('rPhs');
+  var rT=document.getElementById('rT'),rPts=document.getElementById('rPts');
+  var rK=document.getElementById('rK'),rF=document.getElementById('rF'),rFs=document.getElementById('rFs');
+  var stat=document.getElementById('status'),shotLab=document.getElementById('shotLab');
+  var bPause=document.getElementById('bPause'),bSpeed=document.getElementById('bSpeed');
+  var csvBox=document.getElementById('csvBox'),csvTa=document.getElementById('csvTa');
+
+  var DT=0.05,WIN=300,SUB=7;
+  var P={d0:1,f0:3,cb:20,noise:1.5};
+  var seed=42,rng,gauss,S;
+  var run=!RM,fast=false,fr=0,dpr=1,WC=1000,HC=520;
+  var A={t:[],m:[],te:[],ip:[],w1:[],w2:[],k:[],f:[],lk:[],ph:[]};
+
+  function resetShot(){
+    rng=mulberry32(seed);gauss=makeGauss(rng);
+    S=newState(P);
+    A={t:[],m:[],te:[],ip:[],w1:[],w2:[],k:[],f:[],lk:[],ph:[]};
+    shotLab.textContent='TIR #'+seed;
+  }
+
+  function pushSample(meas){
+    A.t.push(S.t);A.m.push(meas.mir);A.te.push(meas.te);A.ip.push(meas.ip);
+    A.w1.push(S.W21);A.w2.push(S.W32);A.k.push(S.K);
+    A.f.push(S.Om/(2*Math.PI));A.lk.push(S.locked?1:0);A.ph.push(S.phaseId);
+  }
+
+  function fit(){dpr=window.devicePixelRatio||1;
+    var r=cc.getBoundingClientRect();WC=Math.max(320,r.width);HC=520;
+    cc.width=Math.round(WC*dpr);cc.height=Math.round(HC*dpr);cc.style.height=HC+'px';
+    ctx.setTransform(dpr,0,0,dpr,0,0);}
+
+  function drawStripFrame(y,h,lab,mL,pw){
+    ctx.strokeStyle=C.line;ctx.lineWidth=1;ctx.globalAlpha=1;
+    ctx.beginPath();ctx.moveTo(mL,y);ctx.lineTo(mL,y+h);ctx.lineTo(mL+pw,y+h);ctx.stroke();
+    ctx.fillStyle=C.mut;ctx.font='10px "IBM Plex Mono",monospace';
+    ctx.textAlign='left';ctx.textBaseline='top';
+    ctx.fillText(lab,mL+6,y+4);
+  }
+
+  function series(arr,i0,i1,dec,y,h,vmin,vmax,col,mL,pw,t0,t1){
+    ctx.strokeStyle=col;ctx.lineWidth=1.2;ctx.globalAlpha=1;
+    ctx.beginPath();var first=true,i;
+    for(i=i0;i<=i1;i+=dec){
+      var px=mL+pw*(A.t[i]-t0)/(t1-t0);
+      var vv=Math.max(vmin,Math.min(vmax,arr[i]));
+      var py=y+h*(1-(vv-vmin)/(vmax-vmin));
+      if(first){ctx.moveTo(px,py);first=false;}else ctx.lineTo(px,py);}
+    ctx.stroke();
+  }
+
+  function draw(){
+    ctx.fillStyle=C.screen;ctx.fillRect(0,0,WC,HC);
+    var n=A.t.length;
+    var mL=52,mR=16,pw=WC-mL-mR;
+    var t1=(n>0)?A.t[n-1]:0;var t0=Math.max(0,t1-WIN);if(t1<WIN)t1=Math.max(WIN,t1);
+    var i0=0;if(n>0){i0=n-1;while(i0>0&&A.t[i0]>t0)i0--;}
+    var i1=Math.max(0,n-1);
+    var dec=Math.max(1,Math.floor((i1-i0)/900));
+    var hs=86,gap=8,top=10,y,i;
+    y=top;
+    if(n>1){
+      var segW=Math.max(1,pw*dec*DT/(t1-t0));
+      for(i=i0;i<=i1;i+=dec){
+        ctx.fillStyle=PHCOL[A.ph[i]];ctx.globalAlpha=0.8;
+        ctx.fillRect(mL+pw*(A.t[i]-t0)/(t1-t0),y,segW+0.5,4);}
+      ctx.globalAlpha=1;
+    }
+    y=top+8;
+    drawStripFrame(y,hs,'MIRNOV dB/dt (u.a.)',mL,pw);
+    ctx.save();ctx.globalAlpha=0.4;ctx.strokeStyle=C.line;ctx.setLineDash([3,4]);
+    ctx.beginPath();ctx.moveTo(mL,y+hs/2);ctx.lineTo(mL+pw,y+hs/2);ctx.stroke();ctx.restore();
+    if(n>1)series(A.m,i0,i1,dec,y,hs,-1.3,1.3,C.plasma,mL,pw,t0,t1);
+    y+=hs+gap;
+    drawStripFrame(y,hs,'T_e (0) (u.a.)',mL,pw);
+    if(n>1)series(A.te,i0,i1,dec,y,hs,-0.05,1.25,C.cuivre,mL,pw,t0,t1);
+    y+=hs+gap;
+    drawStripFrame(y,hs,'I_p (u.a.)',mL,pw);
+    if(n>1)series(A.ip,i0,i1,dec,y,hs,-0.05,1.25,C.steel,mL,pw,t0,t1);
+    y+=hs+gap;
+    drawStripFrame(y,hs,'V\u00c9RIT\u00c9 TERRAIN \u2014 W21, W32, K',mL,pw);
+    ctx.save();ctx.setLineDash([4,5]);ctx.globalAlpha=0.5;ctx.strokeStyle=C.reson;
+    var yk=y+hs*(1-(1-0)/1.6);
+    ctx.beginPath();ctx.moveTo(mL,yk);ctx.lineTo(mL+pw,yk);ctx.stroke();
+    ctx.restore();
+    ctx.fillStyle=C.mut;ctx.font='10px "IBM Plex Mono",monospace';
+    ctx.textAlign='right';ctx.textBaseline='middle';
+    ctx.fillText('K=1',mL+pw-4,yk-8);
+    if(n>1){
+      series(A.w1,i0,i1,dec,y,hs,0,0.4,C.plasma,mL,pw,t0,t1);
+      series(A.w2,i0,i1,dec,y,hs,0,0.4,C.cuivre,mL,pw,t0,t1);
+      series(A.k,i0,i1,dec,y,hs,0,1.6,C.reson,mL,pw,t0,t1);
+    }
+    y+=hs+gap;
+    drawStripFrame(y,hs,'f MODE (kHz) \u2014 zone verrouill\u00e9e en rouge',mL,pw);
+    if(n>1){
+      ctx.globalAlpha=0.10;ctx.fillStyle=C.reson;
+      for(i=i0;i<=i1;i+=dec){if(A.lk[i]>0.5){
+        ctx.fillRect(mL+pw*(A.t[i]-t0)/(t1-t0),y,Math.max(1,pw*dec*DT/(t1-t0))+0.5,hs);}}
+      ctx.globalAlpha=1;
+      series(A.f,i0,i1,dec,y,hs,0,6.5,C.sec,mL,pw,t0,t1);
+    }
+    y+=hs+6;
+    ctx.fillStyle=C.mut;ctx.font='10px "IBM Plex Mono",monospace';
+    ctx.textAlign='center';ctx.textBaseline='top';
+    var nt=6,j;
+    for(j=0;j<=nt;j++){var tv=t0+(t1-t0)*j/nt;
+      ctx.fillText(Math.round(tv)+'',mL+pw*j/nt,y);}
+    ctx.textAlign='left';ctx.fillText('t (ms)',mL+pw+2,y);
+  }
+
+  function setStatus(txt,col){stat.textContent=txt;stat.style.color=col;stat.style.borderColor=col;}
+
+  function updateDom(){
+    var pid=S.phaseId;
+    rPh.textContent=PHTXT[pid];rPh.style.color=PHCOL[pid];rPhs.textContent=PHSUB[pid];
+    rT.textContent=Math.round(S.t)+' ms';
+    rPts.textContent=A.t.length+' points';
+    rK.textContent=S.K.toFixed(2);
+    rK.style.color=(S.K>=1)?C.reson:(S.K>=0.7)?C.warn:C.text;
+    var fk=S.Om/(2*Math.PI);
+    rF.textContent=fk.toFixed(2)+' kHz';
+    rFs.textContent=S.locked?'VERROUILL\u00c9 \u2014 signal Mirnov muet':'rotation du 2/1';
+    rF.style.color=S.locked?C.reson:C.text;
+    setStatus(PHTXT[pid],PHCOL[pid]);
+  }
+
+  function loop(){
+    if(run){
+      var steps=(fast?4:1)*SUB,k;
+      for(k=0;k<steps;k++){
+        if(S.t>=MP.TMAX){run=false;setStatus('ACQUISITION TERMIN\u00c9E (2,5 s)',C.mut);break;}
+        var meas=stepModel(S,P,gauss,DT);
+        if(meas)pushSample(meas);
+        if(S.ended&&S.t>S.tEnd+60){run=false;break;}
+      }
+    }
+    draw();
+    if(fr%5===0)updateDom();
+    fr++;requestAnimationFrame(loop);
+  }
+
+  function buildCsv(){
+    var L=[];
+    L.push('# tokamak_v5 synthetic shot');
+    L.push('# seed='+seed+' delta0='+P.d0+' f0_khz='+P.f0+' cb='+P.cb+' noise_pct='+P.noise);
+    L.push('# t_lock_ms='+(S.tLock>=0?S.tLock.toFixed(2):'NA')+' t_tq_ms='+(S.tTQ>=0?S.tTQ.toFixed(2):'NA')+' t_cq_ms='+(S.tCQ>=0?S.tCQ.toFixed(2):'NA'));
+    L.push('t_ms,mirnov,te,ip,w21,w32,k_chirikov,f_khz,locked,phase');
+    var i,st=2;
+    for(i=0;i<A.t.length;i+=st){
+      L.push(A.t[i].toFixed(2)+','+A.m[i].toFixed(5)+','+A.te[i].toFixed(5)+','+A.ip[i].toFixed(5)+','+
+             A.w1[i].toFixed(5)+','+A.w2[i].toFixed(5)+','+A.k[i].toFixed(4)+','+
+             A.f[i].toFixed(4)+','+A.lk[i]+','+A.ph[i]);
+    }
+    return L.join('\n');
+  }
+  function exportCsv(){
+    var csv=buildCsv();
+    try{
+      var blob=new Blob([csv],{type:'text/csv'});
+      var a=document.createElement('a');
+      a.href=URL.createObjectURL(blob);
+      a.download='tir_'+seed+'_tokamak_v5.csv';
+      document.body.appendChild(a);a.click();
+      setTimeout(function(){URL.revokeObjectURL(a.href);a.remove();},400);
+    }catch(e){}
+    csvTa.value=csv;
+    csvBox.open=true;
+    csvTa.focus();csvTa.select();
+  }
+
+  function readSliders(){
+    P.d0=parseFloat(sD.value);P.f0=parseFloat(sF.value);
+    P.cb=parseFloat(sB.value);P.noise=parseFloat(sN.value);
+    vD.textContent=(P.d0>=0?'+':'')+P.d0.toFixed(1);
+    vF.textContent=P.f0.toFixed(1)+' kHz';
+    vB.textContent=Math.round(P.cb)+'';
+    vN.textContent=P.noise.toFixed(1)+' %';
+  }
+  sD.addEventListener('input',readSliders);
+  sF.addEventListener('input',readSliders);
+  sB.addEventListener('input',readSliders);
+  sN.addEventListener('input',readSliders);
+
+  function preset(d0,f0,cb,noise){sD.value=d0;sF.value=f0;sB.value=cb;sN.value=noise;
+    readSliders();seed++;resetShot();run=true;bPause.textContent='Pause';}
+  document.getElementById('bSafe').addEventListener('click',function(){preset(-0.5,3,20,1.5);});
+  document.getElementById('bClassic').addEventListener('click',function(){preset(1,3,20,1.5);});
+  document.getElementById('bLock').addEventListener('click',function(){preset(1,3,35,1.5);});
+  document.getElementById('bFastG').addEventListener('click',function(){preset(2.5,3,20,1.5);});
+  bSpeed.addEventListener('click',function(){fast=!fast;bSpeed.textContent=fast?'Vitesse ×1':'Vitesse ×4';});
+  bPause.addEventListener('click',function(){run=!run;bPause.textContent=run?'Pause':'Reprendre';});
+  document.getElementById('bNew').addEventListener('click',function(){seed++;resetShot();run=true;bPause.textContent='Pause';});
+  document.getElementById('bCsv').addEventListener('click',exportCsv);
+  if(RM){run=false;bPause.textContent='Reprendre';}
+
+  if(window.ResizeObserver){new ResizeObserver(function(){fit();}).observe(cc);}
+  window.addEventListener('resize',fit);
+  fit();readSliders();resetShot();requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
