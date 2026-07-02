@@ -18,7 +18,7 @@ const SAIN = { d0: -0.5, f0: 3, cb: 20, noise: 1.5 };
 function runShot(P, seed) {
   const rng = M.mulberry32(seed);
   const g = M.makeGauss(rng);
-  const S = M.newState(P);
+  const S = M.newState(P, rng);
   const out = { t: [], mir: [], te: [], ip: [], prad: [], ne: [], teEtat: [], dents: 0, elms: 0 };
   let tePrec = S.Te;
   let elmPrec = 0;
@@ -76,7 +76,7 @@ test('classique (seed 42) : le couplage nourrit le 3/2 — W32 au TQ dans [0.05,
   const P = { ...CLASSIQUE };
   const rng = M.mulberry32(42);
   const g = M.makeGauss(rng);
-  const S = M.newState(P);
+  const S = M.newState(P, rng);
   let w32auTQ = -1;
   while (S.t < M.MP.TMAX && !(S.ended && S.t > S.tEnd + 60)) {
     M.stepModel(S, P, g, DT);
@@ -171,6 +171,18 @@ test('reproductibilité : seeds différents ⇒ séries différentes', () => {
     if (a.mir[i] !== b.mir[i] || a.te[i] !== b.te[i] || a.ip[i] !== b.ip[i]) differe = true;
   }
   assert.ok(differe, 'les tirs seed 42 et 43 ne doivent pas être identiques');
+});
+
+test('dents de scie : période propre au tir (SAWP ±10 %), fixe sans rng', () => {
+  const a = runShot(SAIN, 42);
+  const b = runShot(SAIN, 43);
+  const borne = [M.MP.SAWP * 0.9, M.MP.SAWP * 1.1];
+  assert.ok(a.S.sawP >= borne[0] && a.S.sawP <= borne[1], `sawP=${a.S.sawP}`);
+  assert.ok(b.S.sawP >= borne[0] && b.S.sawP <= borne[1], `sawP=${b.S.sawP}`);
+  assert.ok(Math.abs(a.S.sawP - b.S.sawP) > 0.01,
+    `les périodes des seeds 42 et 43 doivent différer (${a.S.sawP} vs ${b.S.sawP})`);
+  // Rétrocompatibilité : sans rng, période exactement SAWP.
+  assert.equal(M.newState(SAIN).sawP, M.MP.SAWP);
 });
 
 test('bruit : σ stationnaire du canal te ≈ 0.015 ± 25 % (tir sain, tendance retirée)', () => {

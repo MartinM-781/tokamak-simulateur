@@ -56,7 +56,7 @@ function tire(rng, [lo, hi], decimales) {
 // Boucle de tir identique à la page web : arrêt à TMAX ou 60 ms après tEnd,
 // échantillon poussé après stepModel (S.t déjà incrémenté).
 function runShot(P, seed) {
-  const rng = M.mulberry32(seed), g = M.makeGauss(rng), S = M.newState(P);
+  const rng = M.mulberry32(seed), g = M.makeGauss(rng), S = M.newState(P, rng);
   const A = { t: [], m: [], te: [], ip: [], pr: [], ne: [], w1: [], w2: [], k: [], f: [], lk: [], ph: [] };
   while (S.t < M.MP.TMAX && !(S.ended && S.t > S.tEnd + 60)) {
     const meas = M.stepModel(S, P, g, DT);

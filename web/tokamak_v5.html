@@ -164,7 +164,7 @@ var MP=TokamakModel.MP,mulberry32=TokamakModel.mulberry32,makeGauss=TokamakModel
 
   function resetShot(){
     rng=mulberry32(seed);gauss=makeGauss(rng);
-    S=newState(P);
+    S=newState(P,rng);
     A={t:[],m:[],te:[],ip:[],pr:[],ne:[],w1:[],w2:[],k:[],f:[],lk:[],ph:[]};
     shotLab.textContent='TIR #'+seed;
   }

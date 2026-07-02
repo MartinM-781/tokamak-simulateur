@@ -26,10 +26,13 @@ function makeGauss(rng){var spare=null;return function(){
   var u=0,v=0;while(u===0)u=rng();while(v===0)v=rng();
   var m=Math.sqrt(-2*Math.log(u)),th=2*Math.PI*v;
   spare=m*Math.sin(th);return m*Math.cos(th);};}
-function newState(P){
+function newState(P,rng){
+  // rng optionnel : période de dents de scie propre au tir (SAWP ±10 %) ;
+  // sans rng, période fixe SAWP (rétrocompatible).
   return {t:0,W21:MP.WSEED,W32:MP.W32SEED,Om:2*Math.PI*P.f0,Om0:2*Math.PI*P.f0,
     locked:false,tq:false,cq:false,ended:false,
     Te:1,Ip:1,spike:0,sawT:0,rotPh:0,K:0,phaseId:0,
+    sawP:rng?MP.SAWP*(0.9+0.2*rng()):MP.SAWP,
     Prad:MP.PRB,Ne:1,prSpike:0,neSpike:0,
     elmB:0,elmT:MP.ELMP,elmPh:0,
     nM:0,nT:0,nI:0,nP:0,nN:0,
@@ -66,7 +69,7 @@ function stepModel(S,P,g,dt){
     var teq=Math.max(0.1,1-MP.DEG*(S.W21+S.W32));
     S.Te+=(teq-S.Te)*dt/MP.TAUE;
     S.sawT+=dt;
-    if(S.sawT>MP.SAWP&&S.Te>MP.SAWTE){S.sawT=0;S.Te*=MP.SAWDROP;}
+    if(S.sawT>S.sawP&&S.Te>MP.SAWTE){S.sawT=0;S.Te*=MP.SAWDROP;}
   }
   if(S.tq&&!S.cq&&S.Te<MP.CQTE){S.cq=true;S.tCQ=S.t;}
   S.spike*=Math.exp(-dt/MP.SPTAU);
