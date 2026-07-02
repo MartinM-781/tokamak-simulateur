@@ -136,7 +136,18 @@ test('classique : quench de courant 80→20 % normalisé dans [1.7, 30] ms/m² (
   const norme = (o.cqT20 - o.cqT80) / (Math.PI * M.C.A * M.C.A * M.C.KAPPA) * 1e3;
   assert.ok(o.cqT80 > 0 && norme >= 1.7 && norme <= 30, `CQ normalisé=${norme} ms/m²`);
   const totale = o.S.tEnd - o.S.tCQ;
-  assert.ok(totale >= 0.02 && totale <= 0.12, `durée CQ totale=${totale} s`);
+  assert.ok(totale >= 0.02 && totale <= 0.15, `durée CQ totale=${totale} s`);
+});
+
+test('CQ : la durée varie d’un tir à l’autre (plateau post-quench 6–16 eV)', () => {
+  // Les distributions expérimentales de temps de quench s'étalent sur
+  // presque un ordre de grandeur ; un modèle à durée unique serait irréaliste.
+  const a = shot({ d0a: 1.5 }, 100);
+  const b = shot({ d0a: 1.5 }, 101);
+  const da = a.S.tEnd - a.S.tCQ, db = b.S.tEnd - b.S.tCQ;
+  assert.ok(da > 0 && db > 0);
+  assert.ok(Math.abs(da - db) / Math.max(da, db) > 0.03,
+    `durées CQ trop semblables : ${da} vs ${db} s`);
 });
 
 test('classique : précurseur Mirnov de l’ordre du T/s (bobines réelles)', () => {

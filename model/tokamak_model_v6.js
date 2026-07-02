@@ -107,6 +107,10 @@ function newState(P, rng) {
     Om: om0, Om0: om0,
     Te0: 3.0,                                    // démarre froid, monte vers l'équilibre
     Ip: C.IP0, TeCQ: -1,
+    // Température de plateau post-quench propre au tir (6-16 eV) : c'est elle
+    // qui disperse la durée du quench de courant, comme dans les distributions
+    // expérimentales (τ_L/R ∝ Te^3/2).
+    teCQf: C.TECQ * (rng ? (0.6 + 1.0 * rng()) : 1),
     locked: false, tq: false, cq: false, ended: false,
     sawT: 0, sawP: C.SAWP * (rng ? (1 - C.SAWJIT + 2 * C.SAWJIT * rng()) : 1),
     elmB: 0, elmT: C.ELMP, elmPh: 0,
@@ -221,7 +225,7 @@ function stepModel(S, P, g, dt) {
   // --- Quench de courant : L/R avec résistivité post-quench
   if (S.tq && !S.cq && S.Te0 < C.CQTE) { S.cq = true; S.tCQ = S.t; S.TeCQ = S.Te0; }
   if (S.cq) {
-    S.TeCQ += (C.TECQ - S.TeCQ) * dt / 0.002;      // relaxe vers ~10 eV
+    S.TeCQ += (S.teCQf - S.TeCQ) * dt / 0.002;     // relaxe vers le plateau du tir
     var rp = etaSpitzer(S.TeCQ, C.ZEFFCQ, 1) * 2 * Math.PI * C.R0 /
              (Math.PI * C.A * C.A * C.KAPPA);
     S.Ip += (-S.Ip * rp / C.LP) * dt;
