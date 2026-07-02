@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>Tokamak V4 — Îlots magnétiques &amp; chaos de Chirikov</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0B1118; --panel:#111A24; --screen:#0D141D; --line:#22303E;
+  --text:#E9EEF3; --sec:#93A4B4; --mut:#5E7284;
+  --plasma:#F272AC; --reson:#FF7A5C; --warn:#E8B45A;
+  --steel:#5C89B8; --cuivre:#D9975B;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--text)}
+body{font-family:'IBM Plex Mono',ui-monospace,monospace;padding:28px clamp(14px,4vw,44px) 40px;max-width:1180px;margin:0 auto}
+.eyebrow-row{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.eyebrow{font-size:11px;letter-spacing:.22em;color:var(--mut);text-transform:uppercase}
+.status{font-size:11px;letter-spacing:.1em;padding:6px 10px;border:1px solid var(--line);border-radius:999px;color:var(--sec);white-space:nowrap}
+h1{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:clamp(24px,4vw,34px);letter-spacing:-.02em;margin:10px 0 8px}
+.sub{font-size:12.5px;line-height:1.75;color:var(--sec);max-width:78ch;margin:0 0 22px}
+.sub b{color:var(--text);font-weight:600}
+.controls{display:flex;gap:18px;flex-wrap:wrap;align-items:flex-end;margin:0 0 16px}
+.sl{flex:1;min-width:190px}
+.sl-head{display:flex;justify-content:space-between;font-size:11px;letter-spacing:.06em;color:var(--sec);margin-bottom:8px}
+.sl-head .val{font-weight:600;color:var(--text)}
+.u-a{color:var(--plasma)} .u-c{color:var(--cuivre)} .u-i{color:var(--steel)}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:2px;background:var(--line);border-radius:1px;outline:none;margin:8px 0}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:7px;height:19px;border-radius:2px;background:var(--sec);cursor:pointer}
+input[type=range]::-moz-range-thumb{width:7px;height:19px;border:none;border-radius:2px;background:var(--sec);cursor:pointer}
+.sl.a input::-webkit-slider-thumb{background:var(--plasma)} .sl.a input::-moz-range-thumb{background:var(--plasma)}
+.sl.c input::-webkit-slider-thumb{background:var(--cuivre)} .sl.c input::-moz-range-thumb{background:var(--cuivre)}
+.sl.i input::-webkit-slider-thumb{background:var(--steel)} .sl.i input::-moz-range-thumb{background:var(--steel)}
+input[type=range]:focus-visible{outline:1px solid var(--steel);outline-offset:6px;border-radius:2px}
+.btnrow{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:0 0 18px}
+.btnrow .lead{font-size:11px;letter-spacing:.08em;color:var(--mut);margin-right:2px}
+.btn{font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;
+  background:transparent;border:1px solid var(--line);color:var(--sec);padding:8px 12px;border-radius:6px;cursor:pointer}
+.btn:hover{border-color:var(--sec);color:var(--text)}
+.btn:focus-visible{outline:1px solid var(--steel);outline-offset:2px}
+.btn.danger{border-color:#4A2A24;color:var(--reson)}
+.btn.danger:hover{border-color:var(--reson)}
+.spacer{margin-left:auto}
+.grid{display:grid;grid-template-columns:6fr 6fr;gap:14px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px}
+.panel-label{font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--mut);margin:0 0 10px}
+.panel canvas{display:block;width:100%;border-radius:8px;background:var(--screen)}
+.wide{grid-column:1/-1}
+.readouts{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin:14px 0 0}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+.card .k{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--mut);margin:0 0 8px}
+.card .v{font-size:25px;font-weight:500;margin:0;line-height:1.15}
+.card .s{font-size:11px;color:var(--mut);margin:6px 0 0;min-height:14px}
+footer{font-size:11.5px;line-height:1.8;color:var(--mut);margin-top:26px;border-top:1px solid var(--line);padding-top:14px;max-width:94ch}
+@media (max-width:880px){.grid{grid-template-columns:1fr}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<header>
+  <div class="eyebrow-row">
+    <span class="eyebrow">Tokamak · Simulateur · V4</span>
+    <span class="status" id="status">TRAÇAGE</span>
+  </div>
+  <h1>Îlots magnétiques — le tearing mode rendu visible</h1>
+  <p class="sub">On perturbe le champ de la v1 avec <b>δB_r&nbsp;=&nbsp;δB·cos(mθ&nbsp;−&nbsp;nφ)</b>. Sur la surface rationnelle q&nbsp;=&nbsp;m/n, la perturbation est résonante&nbsp;: la séparatrice s'ouvre en une chaîne de <b>m îlots</b> de largeur <b>W&nbsp;∝&nbsp;√δB</b>. Une chaîne isolée dégrade le confinement localement. Deux chaînes qui se recouvrent — critère de <b>Chirikov K&nbsp;≥&nbsp;1</b> — détruisent les surfaces entre elles&nbsp;: le champ devient stochastique et les lignes diffusent jusqu'à la paroi. C'est un hamiltonien à 1½ degré de liberté&nbsp;: le paradigme même du chaos.</p>
+</header>
+
+<section class="controls">
+  <div class="sl a">
+    <div class="sl-head"><span class="u-a">δB (m=2, n=1) / B₀</span><span class="val" id="v21">0.08 %</span></div>
+    <input type="range" id="s21" min="0" max="0.30" step="0.01" value="0.08" aria-label="Amplitude perturbation 2/1">
+  </div>
+  <div class="sl c">
+    <div class="sl-head"><span class="u-c">δB (m=3, n=2) / B₀</span><span class="val" id="v32">0.00 %</span></div>
+    <input type="range" id="s32" min="0" max="0.30" step="0.01" value="0" aria-label="Amplitude perturbation 3/2">
+  </div>
+  <div class="sl i">
+    <div class="sl-head"><span class="u-i">Courant I_p (déplace les r_s)</span><span class="val" id="vI">0.80</span></div>
+    <input type="range" id="sI" min="0.7" max="1" step="0.01" value="0.8" aria-label="Courant plasma">
+  </div>
+</section>
+
+<div class="btnrow">
+  <span class="lead">Scénarios&nbsp;:</span>
+  <button class="btn" id="bOne">Îlot 2/1 seul</button>
+  <button class="btn" id="bTwo">Deux chaînes</button>
+  <button class="btn" id="bOv">Recouvrement</button>
+  <button class="btn danger" id="bDes">Champ détruit</button>
+  <span class="spacer"></span>
+  <button class="btn" id="bFast">Vitesse ×4</button>
+  <button class="btn" id="bPause">Pause</button>
+  <button class="btn" id="bGo">Relancer</button>
+</div>
+
+<main class="grid">
+  <div class="panel">
+    <p class="panel-label">Section de Poincaré — plan poloïdal</p>
+    <canvas id="cp" height="360"></canvas>
+  </div>
+  <div class="panel">
+    <p class="panel-label">Déroulé (θ, r) — zoom sur les surfaces</p>
+    <canvas id="cu" height="360"></canvas>
+  </div>
+  <div class="panel wide">
+    <p class="panel-label">Recouvrement de Chirikov — largeurs sur l'axe r</p>
+    <canvas id="ck" height="120"></canvas>
+  </div>
+</main>
+
+<section class="readouts">
+  <div class="card"><p class="k">Largeur W (2/1)</p><p class="v" id="rW21">—</p><p class="s">n = 1/2 : W ∝ √δB (le pari)</p></div>
+  <div class="card"><p class="k">Largeur W (3/2)</p><p class="v" id="rW32">—</p><p class="s">W = 4√(ε q² / m q′)</p></div>
+  <div class="card"><p class="k">Chirikov K</p><p class="v" id="rK">—</p><p class="s">(W₂₁+W₃₂) / 2Δr_s — chaos si K ≥ 1</p></div>
+  <div class="card"><p class="k">Lignes perdues</p><p class="v" id="rL">0 / 0</p><p class="s">diffusion stochastique jusqu'à la paroi</p></div>
+</section>
+
+<footer>
+Modèle v4 — traçage de lignes de champ&nbsp;: dr/dφ&nbsp;=&nbsp;R₀&nbsp;Σ_k&nbsp;(δB_k/B₀)&nbsp;cos(m_kθ−n_kφ), dθ/dφ&nbsp;=&nbsp;1/q(r), intégré en RK4 (90 pas/tour), un point par tour toroïdal. Profil q hérité de la v3 (ν_j&nbsp;=&nbsp;2, B₀&nbsp;=&nbsp;2)&nbsp;: q₀&nbsp;=&nbsp;B₀/3I_p, q(a)&nbsp;=&nbsp;B₀/I_p. Perturbation statique de type «&nbsp;vide&nbsp;» — pas de réponse plasma auto-cohérente ni de croissance temporelle&nbsp;: W est imposé, pas évolué. Largeur pendulaire W&nbsp;=&nbsp;4√(ε&nbsp;q_s²/(m&nbsp;q′_s)) avec ε&nbsp;=&nbsp;R₀δB/B₀. L'équation de Rutherford dW/dt, le verrouillage de mode et les quenches — la dynamique de la disruption — c'est la v5.
+</footer>
+
+<script>
+(function(){
+  var C={screen:'#0D141D',line:'#22303E',wire:'#3A4C5E',mut:'#5E7284',sec:'#93A4B4',text:'#E9EEF3',
+         plasma:'#F272AC',reson:'#FF7A5C',warn:'#E8B45A',steel:'#5C89B8',cuivre:'#D9975B'};
+  var PAL=[C.plasma,C.steel,C.cuivre,C.sec];
+  var RM=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var cp=document.getElementById('cp'),xp=cp.getContext('2d');
+  var cu=document.getElementById('cu'),xu=cu.getContext('2d');
+  var ck=document.getElementById('ck'),xk=ck.getContext('2d');
+  var s21=document.getElementById('s21'),s32=document.getElementById('s32'),sI=document.getElementById('sI');
+  var v21=document.getElementById('v21'),v32=document.getElementById('v32'),vI=document.getElementById('vI');
+  var rW21=document.getElementById('rW21'),rW32=document.getElementById('rW32');
+  var rK=document.getElementById('rK'),rL=document.getElementById('rL');
+  var stat=document.getElementById('status');
+  var bPause=document.getElementById('bPause'),bFast=document.getElementById('bFast');
+
+  var R0=3,B0=2,TAU=Math.PI*2,STEPS=90,DPHI=TAU/STEPS;
+  var a21=0.08,a32=0,Ip=0.8,e21=0,e32=0;
+  var run=!RM,fast=false,fr=0,dpr=1;
+  var WP=460,HP=360,WU=460,HU=360,WK=1000,HK=120;
+  var lines=[],lost=0;
+  var eq={rs21:0.89,rs32:0.74,W21:0,W32:0,K:0};
+  var RLO=0.55;
+
+  function qOf(r){
+    var u=r*r;if(u<1e-7)return B0/(3*Ip);
+    var m1=(u>=1)?1:(1-Math.pow(1-u,3));
+    return (B0/Ip)*u/m1;
+  }
+  function solveRs(qt){
+    var lo=0.05,hi=1.4,mid,i;
+    if(qOf(lo)>qt)return -1;
+    if(qOf(hi)<qt)return -1;
+    for(i=0;i<48;i++){mid=0.5*(lo+hi);
+      if(qOf(mid)<qt)lo=mid;else hi=mid;}
+    return 0.5*(lo+hi);
+  }
+  function qPrime(r){var h=0.004;return (qOf(r+h)-qOf(r-h))/(2*h);}
+
+  function recomputeTheory(){
+    e21=R0*a21/100;e32=R0*a32/100;
+    eq.rs21=solveRs(2);eq.rs32=solveRs(1.5);
+    var w=0;
+    if(eq.rs21>0&&e21>0){var qp=qPrime(eq.rs21);w=4*Math.sqrt(e21*4/(2*qp));}
+    eq.W21=w;w=0;
+    if(eq.rs32>0&&e32>0){var qp2=qPrime(eq.rs32);w=4*Math.sqrt(e32*2.25/(3*qp2));}
+    eq.W32=w;
+    var d=Math.abs(eq.rs21-eq.rs32);
+    eq.K=(d>1e-6)?(eq.W21+eq.W32)/(2*d):0;
+  }
+
+  function seed(){
+    lines=[];lost=0;
+    var i,n=22,r;
+    for(i=0;i<n;i++){r=0.30+0.66*i/(n-1);
+      lines.push({r:r,th:0,phi:0,dead:false,turns:0,col:PAL[i%4],pts:[]});}
+    var res=[[eq.rs21,2],[eq.rs32,3]],k;
+    for(k=0;k<res.length;k++){var rs=res[k][0],m=res[k][1];
+      if(rs>0){
+        var to=-Math.PI/(2*m);
+        lines.push({r:rs,th:to,phi:0,dead:false,turns:0,col:PAL[(k+1)%4],pts:[]});
+        lines.push({r:rs-0.02,th:to,phi:0,dead:false,turns:0,col:PAL[(k+2)%4],pts:[]});
+        lines.push({r:rs+0.02,th:to,phi:0,dead:false,turns:0,col:PAL[(k+3)%4],pts:[]});
+        lines.push({r:rs,th:Math.PI/(2*m),phi:0,dead:false,turns:0,col:PAL[k%4],pts:[]});
+      }}
+    clearScreens();
+  }
+
+  function deriv(r,th,phi,o){
+    o[0]=e21*Math.cos(2*th-phi)+e32*Math.cos(3*th-2*phi);
+    o[1]=1/qOf(r);
+  }
+  var k1=[0,0],k2=[0,0],k3=[0,0],k4=[0,0];
+  function advanceTurn(L){
+    var s,r=L.r,th=L.th,phi=L.phi,h=DPHI;
+    for(s=0;s<STEPS;s++){
+      deriv(r,th,phi,k1);
+      deriv(r+0.5*h*k1[0],th+0.5*h*k1[1],phi+0.5*h,k2);
+      deriv(r+0.5*h*k2[0],th+0.5*h*k2[1],phi+0.5*h,k3);
+      deriv(r+h*k3[0],th+h*k3[1],phi+h,k4);
+      r+=h/6*(k1[0]+2*k2[0]+2*k3[0]+k4[0]);
+      th+=h/6*(k1[1]+2*k2[1]+2*k3[1]+k4[1]);
+      phi+=h;
+      if(r>=1){L.dead=true;lost++;L.r=1;L.th=th;
+        markLost(th);return;}
+      if(r<0.03)r=0.03;
+    }
+    L.r=r;L.th=th;L.phi=phi;L.turns++;
+    var pt=[r,((th%TAU)+TAU)%TAU];
+    L.pts.push(pt);if(L.pts.length>600)L.pts.shift();
+    dot(L.col,pt[0],pt[1]);
+  }
+
+  function polC(){return {cx:WP/2,cy:HP/2,Rp:Math.min(WP,HP)/2-26};}
+  function uniC(){return {mL:46,mR:14,mT:12,mB:24};}
+
+  function dot(col,r,th){
+    var g=polC();
+    xp.fillStyle=col;xp.globalAlpha=0.9;
+    xp.fillRect(g.cx+r*Math.cos(th)*g.Rp-0.8,g.cy-r*Math.sin(th)*g.Rp-0.8,1.6,1.6);
+    xp.globalAlpha=1;
+    if(r>=RLO){
+      var u=uniC(),pw=WU-u.mL-u.mR,ph=HU-u.mT-u.mB;
+      var px=u.mL+(th/TAU)*pw,py=u.mT+ph*(1-(r-RLO)/(1-RLO));
+      xu.fillStyle=col;xu.globalAlpha=0.9;
+      xu.fillRect(px-0.8,py-0.8,1.6,1.6);
+      xu.globalAlpha=1;
+    }
+  }
+  function markLost(th){
+    var g=polC();
+    xp.strokeStyle=C.reson;xp.lineWidth=1.6;xp.globalAlpha=1;
+    var x=g.cx+Math.cos(th)*g.Rp,y=g.cy-Math.sin(th)*g.Rp;
+    xp.beginPath();xp.moveTo(x-4,y-4);xp.lineTo(x+4,y+4);
+    xp.moveTo(x-4,y+4);xp.lineTo(x+4,y-4);xp.stroke();
+  }
+
+  function overlayPolar(){
+    xp.fillStyle=C.screen;xp.fillRect(0,0,WP,HP);
+    var g=polC();
+    xp.save();
+    xp.strokeStyle=C.wire;xp.globalAlpha=0.75;xp.lineWidth=1.4;
+    xp.beginPath();xp.arc(g.cx,g.cy,g.Rp,0,TAU);xp.stroke();
+    xp.globalAlpha=0.7;xp.lineWidth=1;
+    xp.beginPath();xp.moveTo(g.cx-4,g.cy);xp.lineTo(g.cx+4,g.cy);
+    xp.moveTo(g.cx,g.cy-4);xp.lineTo(g.cx,g.cy+4);xp.stroke();
+    xp.setLineDash([4,5]);xp.globalAlpha=0.4;xp.strokeStyle=C.mut;
+    xp.fillStyle=C.mut;xp.font='10px "IBM Plex Mono",monospace';xp.textAlign='left';
+    var rs=[[eq.rs21,'q=2'],[eq.rs32,'q=3/2']],i;
+    for(i=0;i<rs.length;i++){if(rs[i][0]>0){
+      xp.beginPath();xp.arc(g.cx,g.cy,rs[i][0]*g.Rp,0,TAU);xp.stroke();
+      xp.fillText(rs[i][1],g.cx+rs[i][0]*g.Rp*0.7071+4,g.cy-rs[i][0]*g.Rp*0.7071-5);}}
+    xp.setLineDash([]);
+    xp.globalAlpha=0.85;xp.textBaseline='middle';
+    xp.textAlign='right';xp.fillText('B fort',g.cx-g.Rp-6,g.cy);
+    xp.textAlign='left';xp.fillText('B faible',g.cx+g.Rp+6,g.cy);
+    xp.restore();
+  }
+
+  function overlayUnrolled(){
+    xu.fillStyle=C.screen;xu.fillRect(0,0,WU,HU);
+    var u=uniC(),pw=WU-u.mL-u.mR,ph=HU-u.mT-u.mB,i;
+    function Y(r){return u.mT+ph*(1-(r-RLO)/(1-RLO));}
+    xu.strokeStyle=C.line;xu.lineWidth=1;
+    xu.beginPath();xu.moveTo(u.mL,u.mT);xu.lineTo(u.mL,u.mT+ph);xu.lineTo(u.mL+pw,u.mT+ph);xu.stroke();
+    xu.fillStyle=C.mut;xu.font='10px "IBM Plex Mono",monospace';
+    xu.textAlign='center';xu.textBaseline='top';
+    var tx=['0°','90°','180°','270°','360°'];
+    for(i=0;i<5;i++)xu.fillText(tx[i],u.mL+i/4*pw,u.mT+ph+6);
+    xu.textAlign='right';xu.textBaseline='middle';
+    for(i=0;i<=3;i++){var rv=RLO+(1-RLO)*i/3;
+      xu.fillText(rv.toFixed(2),u.mL-7,Y(rv));}
+    xu.save();xu.setLineDash([4,5]);xu.globalAlpha=0.45;xu.strokeStyle=C.mut;
+    xu.textAlign='left';xu.textBaseline='middle';
+    if(eq.rs21>RLO){xu.beginPath();xu.moveTo(u.mL,Y(eq.rs21));xu.lineTo(u.mL+pw,Y(eq.rs21));xu.stroke();}
+    if(eq.rs32>RLO){xu.beginPath();xu.moveTo(u.mL,Y(eq.rs32));xu.lineTo(u.mL+pw,Y(eq.rs32));xu.stroke();}
+    xu.restore();
+    xu.fillStyle=C.mut;xu.textAlign='left';xu.textBaseline='bottom';
+    xu.fillText('r/a',u.mL+4,u.mT+12);
+  }
+
+  function replay(){
+    var i,j;
+    for(i=0;i<lines.length;i++){var L=lines[i];
+      for(j=0;j<L.pts.length;j++)dot(L.col,L.pts[j][0],L.pts[j][1]);
+      if(L.dead)markLost(L.th);}
+  }
+  function clearScreens(){overlayPolar();overlayUnrolled();}
+
+  function drawChirikov(){
+    xk.fillStyle=C.screen;xk.fillRect(0,0,WK,HK);
+    var mL=60,mR=90,pw=WK-mL-mR;
+    function X(r){return mL+pw*Math.max(0,Math.min(1,(r-0.5)/0.5));}
+    var yAx=HK-26,y32=34,y21=64,i;
+    xk.strokeStyle=C.line;xk.lineWidth=1;xk.globalAlpha=1;
+    xk.beginPath();xk.moveTo(mL,yAx);xk.lineTo(mL+pw,yAx);xk.stroke();
+    xk.fillStyle=C.mut;xk.font='10px "IBM Plex Mono",monospace';
+    xk.textAlign='center';xk.textBaseline='top';
+    for(i=0;i<=5;i++){var rv=0.5+0.1*i;
+      xk.fillText(rv.toFixed(1),X(rv),yAx+6);}
+    xk.textAlign='left';xk.fillText('r/a',mL+pw+8,yAx-4);
+    function band(y,rs,W,col,lab){
+      if(rs<=0)return;
+      xk.fillStyle=col;xk.globalAlpha=0.25;
+      if(W>0)xk.fillRect(X(rs-W/2),y-8,Math.max(2,X(rs+W/2)-X(rs-W/2)),16);
+      xk.globalAlpha=1;xk.strokeStyle=col;xk.lineWidth=2;
+      xk.beginPath();xk.moveTo(X(rs),y-10);xk.lineTo(X(rs),y+10);xk.stroke();
+      xk.fillStyle=col;xk.textAlign='right';xk.textBaseline='middle';
+      xk.fillText(lab,mL-10,y);
+    }
+    band(y32,eq.rs32,eq.W32,C.cuivre,'3/2');
+    band(y21,eq.rs21,eq.W21,C.plasma,'2/1');
+    if(eq.W21>0&&eq.W32>0){
+      var lo=Math.max(eq.rs32-eq.W32/2,eq.rs21-eq.W21/2);
+      var hi=Math.min(eq.rs32+eq.W32/2,eq.rs21+eq.W21/2);
+      if(hi>lo){xk.fillStyle=C.reson;xk.globalAlpha=0.35;
+        xk.fillRect(X(lo),y32-8,X(hi)-X(lo),y21-y32+16);xk.globalAlpha=1;}
+    }
+    var col=(eq.K>=1)?C.reson:(eq.K>=0.7)?C.warn:C.sec;
+    xk.fillStyle=col;xk.font='600 13px "IBM Plex Mono",monospace';
+    xk.textAlign='left';xk.textBaseline='middle';
+    xk.fillText('K = '+eq.K.toFixed(2),mL+pw+8,(y32+y21)/2);
+  }
+
+  function setStatus(txt,col){stat.textContent=txt;stat.style.color=col;stat.style.borderColor=col;}
+
+  function updateDom(){
+    rW21.textContent=(eq.W21>0)?eq.W21.toFixed(3)+' a':'—';
+    rW32.textContent=(eq.W32>0)?eq.W32.toFixed(3)+' a':'—';
+    rK.textContent=eq.K.toFixed(2);
+    rL.textContent=lost+' / '+lines.length;
+    var fl=lost/Math.max(1,lines.length);
+    if(fl>0.3)setStatus('FLUX STOCHASTIQUE VERS LA PAROI',C.reson);
+    else if(eq.K>=1)setStatus('CHAMP STOCHASTIQUE \u2014 CHIRIKOV K \u2265 1',C.reson);
+    else if(eq.K>=0.7)setStatus('APPROCHE DU RECOUVREMENT',C.warn);
+    else if(e21>0||e32>0)setStatus('CHA\u00ceNES D\u2019\u00ceLOTS \u2014 CONFINEMENT D\u00c9GRAD\u00c9',C.sec);
+    else setStatus('CHAMP INT\u00c8GRE \u2014 SURFACES EMBO\u00ceT\u00c9ES',C.sec);
+  }
+
+  function loop(){
+    if(run){
+      var tpf=fast?12:3,i,k;
+      for(k=0;k<tpf;k++)for(i=0;i<lines.length;i++){var L=lines[i];
+        if(!L.dead&&L.turns<900)advanceTurn(L);}
+    }
+    drawChirikov();
+    if(fr%6===0)updateDom();
+    fr++;requestAnimationFrame(loop);
+  }
+
+  function fitOne(cv,cx,hCss){var r=cv.getBoundingClientRect();var w=Math.max(220,r.width);
+    cv.width=Math.round(w*dpr);cv.height=Math.round(hCss*dpr);cv.style.height=hCss+'px';
+    cx.setTransform(dpr,0,0,dpr,0,0);return w;}
+  function fit(){dpr=window.devicePixelRatio||1;
+    WP=fitOne(cp,xp,360);HP=360;
+    WU=fitOne(cu,xu,360);HU=360;
+    WK=fitOne(ck,xk,120);HK=120;
+    clearScreens();replay();}
+
+  function readSliders(reseed){
+    a21=parseFloat(s21.value);a32=parseFloat(s32.value);Ip=parseFloat(sI.value);
+    v21.textContent=a21.toFixed(2)+' %';v32.textContent=a32.toFixed(2)+' %';
+    vI.textContent=Ip.toFixed(2);
+    recomputeTheory();
+    if(reseed!==false)seed();
+  }
+  s21.addEventListener('input',function(){readSliders();});
+  s32.addEventListener('input',function(){readSliders();});
+  sI.addEventListener('input',function(){readSliders();});
+
+  function preset(x,y,z){s21.value=x;s32.value=y;sI.value=z;readSliders();}
+  document.getElementById('bOne').addEventListener('click',function(){preset(0.08,0,0.8);});
+  document.getElementById('bTwo').addEventListener('click',function(){preset(0.06,0.05,0.8);});
+  document.getElementById('bOv').addEventListener('click',function(){preset(0.18,0.14,0.8);});
+  document.getElementById('bDes').addEventListener('click',function(){preset(0.30,0.25,0.8);});
+  bFast.addEventListener('click',function(){fast=!fast;bFast.textContent=fast?'Vitesse ×1':'Vitesse ×4';});
+  bPause.addEventListener('click',function(){run=!run;bPause.textContent=run?'Pause':'Reprendre';});
+  document.getElementById('bGo').addEventListener('click',function(){seed();});
+  if(RM){bPause.textContent='Reprendre';}
+
+  if(window.ResizeObserver){
+    var ro=new ResizeObserver(function(){fit();});
+    ro.observe(cp);ro.observe(cu);ro.observe(ck);
+  }
+  window.addEventListener('resize',fit);
+  fit();readSliders();requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>

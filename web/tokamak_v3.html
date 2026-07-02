@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>Tokamak V3 — Équilibre MHD : ∇P = j×B &amp; décalage de Shafranov</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0B1118; --panel:#111A24; --screen:#0D141D; --line:#22303E;
+  --text:#E9EEF3; --sec:#93A4B4; --mut:#5E7284;
+  --plasma:#F272AC; --reson:#FF7A5C; --warn:#E8B45A;
+  --steel:#5C89B8; --cuivre:#D9975B;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--text)}
+body{font-family:'IBM Plex Mono',ui-monospace,monospace;padding:28px clamp(14px,4vw,44px) 40px;max-width:1180px;margin:0 auto}
+.eyebrow-row{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.eyebrow{font-size:11px;letter-spacing:.22em;color:var(--mut);text-transform:uppercase}
+.status{font-size:11px;letter-spacing:.1em;padding:6px 10px;border:1px solid var(--line);border-radius:999px;color:var(--sec);white-space:nowrap}
+h1{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:clamp(24px,4vw,34px);letter-spacing:-.02em;margin:10px 0 8px}
+.sub{font-size:12.5px;line-height:1.75;color:var(--sec);max-width:76ch;margin:0 0 22px}
+.sub b{color:var(--text);font-weight:600}
+.controls{display:flex;gap:18px;flex-wrap:wrap;align-items:flex-end;margin:0 0 16px}
+.sl{flex:1;min-width:170px}
+.sl-head{display:flex;justify-content:space-between;font-size:11px;letter-spacing:.06em;color:var(--sec);margin-bottom:8px}
+.sl-head .val{font-weight:600;color:var(--text)}
+.u-b{color:var(--steel)} .u-i{color:var(--cuivre)} .u-p{color:var(--plasma)} .u-n{color:var(--text)}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:2px;background:var(--line);border-radius:1px;outline:none;margin:8px 0}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:7px;height:19px;border-radius:2px;background:var(--sec);cursor:pointer}
+input[type=range]::-moz-range-thumb{width:7px;height:19px;border:none;border-radius:2px;background:var(--sec);cursor:pointer}
+.sl.b input::-webkit-slider-thumb{background:var(--steel)} .sl.b input::-moz-range-thumb{background:var(--steel)}
+.sl.i input::-webkit-slider-thumb{background:var(--cuivre)} .sl.i input::-moz-range-thumb{background:var(--cuivre)}
+.sl.p input::-webkit-slider-thumb{background:var(--plasma)} .sl.p input::-moz-range-thumb{background:var(--plasma)}
+.sl.n input::-webkit-slider-thumb{background:var(--text)} .sl.n input::-moz-range-thumb{background:var(--text)}
+input[type=range]:focus-visible{outline:1px solid var(--steel);outline-offset:6px;border-radius:2px}
+.btnrow{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:0 0 18px}
+.btnrow .lead{font-size:11px;letter-spacing:.08em;color:var(--mut);margin-right:2px}
+.btn{font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;
+  background:transparent;border:1px solid var(--line);color:var(--sec);padding:8px 12px;border-radius:6px;cursor:pointer}
+.btn:hover{border-color:var(--sec);color:var(--text)}
+.btn:focus-visible{outline:1px solid var(--steel);outline-offset:2px}
+.btn.danger{border-color:#4A2A24;color:var(--reson)}
+.btn.danger:hover{border-color:var(--reson)}
+.spacer{margin-left:auto}
+.grid{display:grid;grid-template-columns:7fr 5fr;gap:14px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px}
+.panel-label{font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--mut);margin:0 0 10px}
+.panel canvas{display:block;width:100%;border-radius:8px;background:var(--screen)}
+.wide{grid-column:1/-1}
+.readouts{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin:14px 0 0}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+.card .k{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--mut);margin:0 0 8px}
+.card .v{font-size:25px;font-weight:500;margin:0;line-height:1.15}
+.card .s{font-size:11px;color:var(--mut);margin:6px 0 0;min-height:14px}
+footer{font-size:11.5px;line-height:1.8;color:var(--mut);margin-top:26px;border-top:1px solid var(--line);padding-top:14px;max-width:92ch}
+@media (max-width:880px){.grid{grid-template-columns:1fr}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<header>
+  <div class="eyebrow-row">
+    <span class="eyebrow">Tokamak · Simulateur · V3</span>
+    <span class="status" id="status">CALCUL</span>
+  </div>
+  <h1>Équilibre MHD — ∇P = j×B &amp; décalage de Shafranov</h1>
+  <p class="sub">La particule laisse place au fluide. Tu règles la machine (B₀, I_p, piquage du courant ν_j) et le chauffage (p₀) ; l'équilibre <b>∇P&nbsp;=&nbsp;j×B</b> fait le reste. La pression et la force de cerceau de l'anneau de courant poussent le cœur vers l'extérieur&nbsp;: les surfaces de flux se décalent — c'est le <b>décalage de Shafranov</b>, Δ′(r)&nbsp;=&nbsp;−(r/R₀)(β_p&nbsp;+&nbsp;ℓᵢ/2). Et chaque bouton que tu pousses te rapproche d'une limite&nbsp;: q(a)&nbsp;&lt;&nbsp;2, q₀&nbsp;&lt;&nbsp;1, Troyon, équilibre.</p>
+</header>
+
+<section class="controls">
+  <div class="sl b">
+    <div class="sl-head"><span class="u-b">Champ toroïdal B₀</span><span class="val" id="vB">2.0</span></div>
+    <input type="range" id="sB" min="1" max="4" step="0.1" value="2" aria-label="Champ toroïdal B0">
+  </div>
+  <div class="sl i">
+    <div class="sl-head"><span class="u-i">Courant plasma I_p</span><span class="val" id="vI">0.70</span></div>
+    <input type="range" id="sI" min="0.3" max="3" step="0.05" value="0.7" aria-label="Courant plasma Ip">
+  </div>
+  <div class="sl p">
+    <div class="sl-head"><span class="u-p">Pression centrale p₀</span><span class="val" id="vP">0.050</span></div>
+    <input type="range" id="sP" min="0" max="0.30" step="0.005" value="0.05" aria-label="Pression centrale">
+  </div>
+  <div class="sl n">
+    <div class="sl-head"><span class="u-n">Piquage du courant ν_j</span><span class="val" id="vN">1.0</span></div>
+    <input type="range" id="sN" min="1" max="3" step="0.1" value="1" aria-label="Piquage du profil de courant">
+  </div>
+</section>
+
+<div class="btnrow">
+  <span class="lead">Scénarios&nbsp;:</span>
+  <button class="btn" id="bOhm">Ohmique</button>
+  <button class="btn" id="bNbi">Chauffage NBI</button>
+  <button class="btn" id="bHp">Dents de scie</button>
+  <button class="btn danger" id="bPush">Pousser la limite</button>
+  <span class="spacer"></span>
+  <button class="btn" id="bReset">Réinitialiser</button>
+</div>
+
+<main class="grid">
+  <div class="panel">
+    <p class="panel-label">Section poloïdale — surfaces de flux &amp; pression</p>
+    <canvas id="cs" height="340"></canvas>
+  </div>
+  <div class="panel">
+    <p class="panel-label">Profils — p(r) · j_φ(r) · q(r)</p>
+    <canvas id="cf" height="340"></canvas>
+  </div>
+  <div class="panel wide">
+    <p class="panel-label">Tableau des limites — q(a) · q₀ · β_N · β_p</p>
+    <canvas id="cg" height="150"></canvas>
+  </div>
+</main>
+
+<section class="readouts">
+  <div class="card"><p class="k">Bêta toroïdal β</p><p class="v" id="rB">—</p><p class="s">2μ₀⟨p⟩ / B₀²</p></div>
+  <div class="card"><p class="k">Décalage de Shafranov Δ₀</p><p class="v" id="rD">—</p><p class="s">axe magnétique poussé côté B faible</p></div>
+  <div class="card"><p class="k">Bêta poloïdal β_p</p><p class="v" id="rBp">—</p><p class="s" id="rBps">—</p></div>
+  <div class="card"><p class="k">ΔB_φ au cœur</p><p class="v" id="rDb">—</p><p class="s" id="rDbs">—</p></div>
+</section>
+
+<footer>
+Modèle v3 — développement grand rapport d'aspect au 1ᵉʳ ordre (R₀/a&nbsp;=&nbsp;3, μ₀&nbsp;=&nbsp;1, unités arbitraires)&nbsp;: surfaces circulaires à centres décalés, Δ′(r)&nbsp;=&nbsp;−(r/R₀)[β_p(r)&nbsp;+&nbsp;ℓᵢ(r)/2], courant j&nbsp;∝&nbsp;(1−r²)^ν_j (ν_j&nbsp;=&nbsp;1 redonne exactement les v1–v2 ; q(a)&nbsp;=&nbsp;B₀/I_p, q₀&nbsp;=&nbsp;B₀/((ν_j+1)I_p)), pression p&nbsp;=&nbsp;p₀(1−r²)². B_φ interne recalculé par équilibre radial (dia/paramagnétisme). Limite de Troyon empirique β_N&nbsp;≲&nbsp;3, limite d'équilibre β_p&nbsp;≲&nbsp;R₀/a. Le champ vertical externe qui retient l'anneau est implicite. Les scénarios extrêmes sortent volontairement du domaine de validité (Δ&nbsp;≪&nbsp;a) — c'est le but&nbsp;: voir où ça casse. Les îlots magnétiques qui naissent sur q&nbsp;=&nbsp;2, c'est la v4.
+</footer>
+
+<script>
+(function(){
+  var C={screen:'#0D141D',line:'#22303E',wire:'#3A4C5E',mut:'#5E7284',sec:'#93A4B4',text:'#E9EEF3',
+         plasma:'#F272AC',reson:'#FF7A5C',warn:'#E8B45A',steel:'#5C89B8',cuivre:'#D9975B'};
+  var cs=document.getElementById('cs'),xs=cs.getContext('2d');
+  var cf=document.getElementById('cf'),xf=cf.getContext('2d');
+  var cg=document.getElementById('cg'),xg=cg.getContext('2d');
+  var sB=document.getElementById('sB'),sI=document.getElementById('sI'),
+      sP=document.getElementById('sP'),sN=document.getElementById('sN');
+  var vB=document.getElementById('vB'),vI=document.getElementById('vI'),
+      vP=document.getElementById('vP'),vN=document.getElementById('vN');
+  var rB=document.getElementById('rB'),rD=document.getElementById('rD'),
+      rBp=document.getElementById('rBp'),rBps=document.getElementById('rBps'),
+      rDb=document.getElementById('rDb'),rDbs=document.getElementById('rDbs');
+  var stat=document.getElementById('stat')||document.getElementById('status');
+
+  var R0=3,N=200;
+  var tgt={B0:2,Ip:0.7,p0:0.05,nu:1};
+  var cur={B0:2,Ip:0.7,p0:0.05,nu:1};
+  var WS=600,HS=340,WF=420,HF=340,WG=1000,HG=150,dpr=1,fr=0;
+
+  function computeEq(B0,Ip,p0,nu){
+    var i,r,dr=1/N,e1=nu+1;
+    var rr=new Array(N+1),p=new Array(N+1),Bt=new Array(N+1),j=new Array(N+1),q=new Array(N+1);
+    var q0an=B0/(Ip*e1);
+    for(i=0;i<=N;i++){r=i*dr;rr[i]=r;
+      p[i]=p0*Math.pow(Math.max(0,1-r*r),2);
+      var m1=1-Math.pow(1-r*r,e1);
+      Bt[i]=(r>1e-9)?Ip*m1/(R0*r):0;
+      j[i]=(2*e1*Ip/R0)*Math.pow(Math.max(0,1-r*r),nu);
+      q[i]=(m1>1e-9)?r*r*B0/(Ip*m1):q0an;}
+    var cumPr=new Array(N+1),cumB2r=new Array(N+1);
+    cumPr[0]=0;cumB2r[0]=0;
+    for(i=1;i<=N;i++){
+      cumPr[i]=cumPr[i-1]+0.5*(p[i]*rr[i]+p[i-1]*rr[i-1])*dr;
+      cumB2r[i]=cumB2r[i-1]+0.5*(Bt[i]*Bt[i]*rr[i]+Bt[i-1]*Bt[i-1]*rr[i-1])*dr;}
+    var dD=new Array(N+1),bp_r,li;
+    for(i=1;i<=N;i++){r=rr[i];
+      bp_r=2*((2/(r*r))*cumPr[i]-p[i])/(Bt[i]*Bt[i]);
+      li=2*cumB2r[i]/(r*r*Bt[i]*Bt[i]);
+      dD[i]=-(r/R0)*(bp_r+0.5*li);}
+    dD[0]=0;
+    var D=new Array(N+1);D[N]=0;
+    for(i=N-1;i>=0;i--){D[i]=D[i+1]-0.5*(dD[i]+dD[i+1])*dr;}
+    var G=new Array(N+1);G[N]=0;
+    for(i=N-1;i>=1;i--){G[i]=G[i+1]+0.5*(Bt[i]*Bt[i]/rr[i]+Bt[i+1]*Bt[i+1]/rr[i+1])*dr;}
+    G[0]=G[1];
+    var avgp=2*cumPr[N];
+    var beta=2*avgp/(B0*B0);
+    var Bta=Bt[N];
+    var betap=(Bta>1e-9)?2*avgp/(Bta*Bta):0;
+    var betaN=beta*100*B0/Ip;
+    var Bphi0sq=B0*B0-2*p[0]+Bta*Bta+2*G[0];
+    var dB=(Math.sqrt(Math.max(0,Bphi0sq))/B0-1)*100;
+    var maxdD=0;for(i=0;i<=N;i++){if(-dD[i]>maxdD)maxdD=-dD[i];}
+    return {rr:rr,p:p,Bt:Bt,j:j,q:q,D:D,beta:beta,betap:betap,betaN:betaN,
+            q0:q0an,qa:B0/Ip,D0:D[0],dB:dB,maxdD:maxdD,p0:p0,j0:2*e1*Ip/R0};
+  }
+
+  function DofR(eq,r){var x=r*N;var i=Math.min(N-1,Math.floor(x));var f=x-i;
+    return eq.D[i]*(1-f)+eq.D[i+1]*f;}
+  function pofR(eq,r){var x=r*N;var i=Math.min(N-1,Math.floor(x));var f=x-i;
+    return eq.p[i]*(1-f)+eq.p[i+1]*f;}
+
+  function hexLerp(a,b,t){
+    function h(c){return [parseInt(c.substr(1,2),16),parseInt(c.substr(3,2),16),parseInt(c.substr(5,2),16)];}
+    var A=h(a),B=h(b),i,o=[];
+    for(i=0;i<3;i++)o[i]=Math.round(A[i]+(B[i]-A[i])*t);
+    return 'rgb('+o[0]+','+o[1]+','+o[2]+')';
+  }
+  function pcol(t){t=Math.max(0,Math.min(1,t));t=Math.pow(t,0.8);
+    if(t<0.5)return hexLerp('#0D141D','#7A2F5E',t*2);
+    return hexLerp('#7A2F5E','#F272AC',(t-0.5)*2);}
+
+  function fitOne(cv,cx,hCss){var r=cv.getBoundingClientRect();var w=Math.max(220,r.width);
+    cv.width=Math.round(w*dpr);cv.height=Math.round(hCss*dpr);cv.style.height=hCss+'px';
+    cx.setTransform(dpr,0,0,dpr,0,0);return w;}
+  function fit(){dpr=window.devicePixelRatio||1;
+    WS=fitOne(cs,xs,340);HS=340;
+    WF=fitOne(cf,xf,340);HF=340;
+    WG=fitOne(cg,xg,150);HG=150;}
+
+  function drawSection(eq){
+    xs.fillStyle=C.screen;xs.fillRect(0,0,WS,HS);
+    var cx=WS/2,cy=HS/2,Rp=Math.min(WS,HS)/2-30,i;
+    var rs=[1,0.88,0.76,0.64,0.52,0.40,0.28,0.16];
+    var pmax=Math.max(eq.p0,1e-6);
+    for(i=0;i<rs.length;i++){var r=rs[i];
+      var dx=Math.min(DofR(eq,r),Math.max(0,1-r-0.03))*Rp;
+      xs.fillStyle=pcol(pofR(eq,r)/pmax);
+      xs.beginPath();xs.arc(cx+dx,cy,r*Rp,0,2*Math.PI);xs.fill();}
+    xs.fillStyle=pcol(1);
+    xs.beginPath();xs.arc(cx+eq.D0*Rp,cy,0.07*Rp,0,2*Math.PI);xs.fill();
+    xs.save();xs.strokeStyle=C.wire;xs.lineWidth=1;
+    for(i=0;i<rs.length;i++){var r2=rs[i];
+      xs.globalAlpha=(i===0)?0.8:0.30;
+      xs.lineWidth=(i===0)?1.4:1;
+      var dx2=Math.min(DofR(eq,r2),Math.max(0,1-r2-0.03))*Rp;
+      xs.beginPath();xs.arc(cx+dx2,cy,r2*Rp,0,2*Math.PI);xs.stroke();}
+    xs.globalAlpha=0.35;xs.setLineDash([3,5]);
+    xs.beginPath();xs.moveTo(cx-Rp-6,cy);xs.lineTo(cx+Rp+6,cy);xs.stroke();
+    xs.setLineDash([]);xs.restore();
+    xs.save();xs.fillStyle=C.mut;xs.font='10px "IBM Plex Mono",monospace';
+    xs.textBaseline='middle';xs.globalAlpha=0.85;
+    xs.textAlign='right';xs.fillText('B fort',cx-Rp-8,cy);
+    xs.textAlign='left';xs.fillText('B faible',cx+Rp+8,cy);
+    xs.restore();
+    var ax=cx+eq.D0*Rp;
+    xs.strokeStyle=C.text;xs.lineWidth=1.4;xs.globalAlpha=1;
+    xs.beginPath();xs.moveTo(ax-6,cy);xs.lineTo(ax+6,cy);xs.moveTo(ax,cy-6);xs.lineTo(ax,cy+6);xs.stroke();
+    xs.strokeStyle=C.mut;xs.globalAlpha=0.6;
+    xs.beginPath();xs.moveTo(cx,cy-5);xs.lineTo(cx,cy+5);xs.stroke();
+    xs.globalAlpha=1;
+    if(eq.D0*Rp>7){
+      var y2=cy-16;
+      xs.strokeStyle=C.warn;xs.fillStyle=C.warn;xs.lineWidth=1.2;
+      xs.beginPath();xs.moveTo(cx,y2);xs.lineTo(ax,y2);xs.stroke();
+      xs.beginPath();xs.moveTo(ax,y2);xs.lineTo(ax-6,y2-3.5);xs.lineTo(ax-6,y2+3.5);xs.closePath();xs.fill();
+      xs.font='10px "IBM Plex Mono",monospace';xs.textAlign='center';xs.textBaseline='bottom';
+      xs.fillText('Δ₀ = '+eq.D0.toFixed(2)+' a',(cx+ax)/2,y2-5);
+    }
+  }
+
+  function strip(ylab,ytop,h,arr,rr,ymax,col,fill,guides){
+    var mL=42,mR=14;
+    var pw=WF-mL-mR,i;
+    function X(r){return mL+r*pw;}
+    function Y(v){return ytop+h*(1-v/ymax);}
+    xf.strokeStyle=C.line;xf.lineWidth=1;xf.globalAlpha=1;
+    xf.beginPath();xf.moveTo(mL,ytop);xf.lineTo(mL,ytop+h);xf.lineTo(mL+pw,ytop+h);xf.stroke();
+    xf.fillStyle=C.mut;xf.font='10px "IBM Plex Mono",monospace';
+    xf.textAlign='right';xf.textBaseline='middle';
+    xf.fillText(ylab,mL-7,ytop+8);
+    if(guides){xf.save();xf.setLineDash([4,5]);xf.globalAlpha=0.45;xf.strokeStyle=C.mut;
+      xf.textAlign='left';
+      for(i=0;i<guides.length;i++){var g=guides[i];
+        if(g[0]<ymax){xf.beginPath();xf.moveTo(mL,Y(g[0]));xf.lineTo(mL+pw,Y(g[0]));xf.stroke();
+          xf.fillText(g[1],mL+pw+2,Y(g[0]));}}
+      xf.restore();}
+    if(fill){xf.save();xf.globalAlpha=0.14;xf.fillStyle=col;
+      xf.beginPath();xf.moveTo(X(0),Y(Math.min(arr[0],ymax)));
+      for(i=1;i<arr.length;i++)xf.lineTo(X(rr[i]),Y(Math.min(arr[i],ymax)));
+      xf.lineTo(X(1),ytop+h);xf.lineTo(X(0),ytop+h);xf.closePath();xf.fill();xf.restore();}
+    xf.strokeStyle=col;xf.lineWidth=1.6;xf.globalAlpha=1;
+    xf.beginPath();
+    for(i=0;i<arr.length;i++){var yv=Y(Math.min(arr[i],ymax));
+      if(i)xf.lineTo(X(rr[i]),yv);else xf.moveTo(X(rr[i]),yv);}
+    xf.stroke();
+  }
+
+  function drawProfiles(eq){
+    xf.fillStyle=C.screen;xf.fillRect(0,0,WF,HF);
+    var h=88,g=18,top=14;
+    strip('p',top,h,eq.p,eq.rr,Math.max(eq.p0*1.08,0.01),C.plasma,true,null);
+    strip('j',top+h+g,h,eq.j,eq.rr,eq.j0*1.08,C.cuivre,false,null);
+    strip('q',top+2*(h+g),h,eq.q,eq.rr,Math.max(eq.q[N]*1.12,3),C.steel,false,[[1,'1'],[2,'2']]);
+    xf.fillStyle=C.mut;xf.font='10px "IBM Plex Mono",monospace';
+    xf.textAlign='center';xf.textBaseline='top';
+    var mL=42,pw=WF-42-14,i;
+    for(i=0;i<=4;i++){xf.fillText((i/4).toFixed(2),mL+i/4*pw,top+3*h+2*g+6);}
+    xf.textAlign='left';xf.fillText('r/a',mL+pw-20,top+2*(h+g)+10);
+  }
+
+  function gauge(y,label,val,vmin,vmax,zones,fmt){
+    var mL=110,mR=76;
+    var pw=WG-mL-mR,i;
+    function X(v){return mL+pw*Math.max(0,Math.min(1,(v-vmin)/(vmax-vmin)));}
+    xg.fillStyle=C.mut;xg.font='10px "IBM Plex Mono",monospace';
+    xg.textAlign='right';xg.textBaseline='middle';
+    xg.fillText(label,mL-12,y);
+    var state=0;
+    for(i=0;i<zones.length;i++){var z=zones[i];
+      xg.globalAlpha=0.16;xg.fillStyle=(z[2]==='r')?C.reson:C.warn;
+      xg.fillRect(X(z[0]),y-7,X(z[1])-X(z[0]),14);
+      if(val>=z[0]&&val<=z[1])state=Math.max(state,(z[2]==='r')?2:1);}
+    xg.globalAlpha=0.7;xg.strokeStyle=C.line;xg.lineWidth=1;
+    xg.beginPath();xg.moveTo(mL,y);xg.lineTo(mL+pw,y);xg.stroke();
+    var col=(state===2)?C.reson:(state===1)?C.warn:C.text;
+    xg.globalAlpha=1;xg.strokeStyle=col;xg.lineWidth=2;
+    var xv=X(val);
+    xg.beginPath();xg.moveTo(xv,y-8);xg.lineTo(xv,y+8);xg.stroke();
+    xg.fillStyle=col;xg.textAlign='left';
+    xg.fillText(fmt,mL+pw+12,y);
+    return state;
+  }
+
+  function drawGauges(eq){
+    xg.fillStyle=C.screen;xg.fillRect(0,0,WG,HG);
+    var s1=gauge(28,'q(a) — disruption',eq.qa,0,6,[[0,2,'r']],eq.qa.toFixed(2));
+    var s2=gauge(60,'q(0) — dents de scie',eq.q0,0,3,[[0,1,'a']],eq.q0.toFixed(2));
+    var s3=gauge(92,'β_N — Troyon',eq.betaN,0,6,[[2.5,3,'a'],[3,6,'r']],eq.betaN.toFixed(2));
+    var s4=gauge(124,'β_p — équilibre',eq.betap,0,4,[[2.4,3,'a'],[3,4,'r']],eq.betap.toFixed(2));
+    return {qa:s1,q0:s2,bn:s3,bp:s4};
+  }
+
+  function setStatus(txt,col){stat.textContent=txt;stat.style.color=col;stat.style.borderColor=col;}
+
+  function updateDom(eq,st){
+    rB.textContent=(eq.beta*100).toFixed(2)+' %';
+    rD.textContent=eq.D0.toFixed(2)+' a';
+    rBp.textContent=eq.betap.toFixed(2);
+    rBps.textContent=(eq.betap>1)?'> 1 : plasma diamagnétique':'< 1 : plasma paramagnétique';
+    rDb.textContent=(eq.dB>=0?'+':'')+eq.dB.toFixed(2)+' %';
+    rDbs.textContent=(eq.dB<0)?'le plasma creuse B_φ (diamagnétisme)':'le plasma renforce B_φ (paramagnétisme)';
+    if(st.qa===2)setStatus('LIMITE q(a) < 2 — DISRUPTION IMMINENTE',C.reson);
+    else if(st.bp===2)setStatus('LIMITE D\u00c9QUILIBRE \u03b2_p ATTEINTE',C.reson);
+    else if(st.bn===2)setStatus('LIMITE DE TROYON D\u00c9PASS\u00c9E',C.reson);
+    else if(st.q0===1)setStatus('R\u00c9GIME DENTS DE SCIE (q\u2080 < 1)',C.warn);
+    else if(st.bn===1||st.bp===1)setStatus('APPROCHE DES LIMITES \u03b2',C.warn);
+    else setStatus('\u00c9QUILIBRE NOMINAL',C.sec);
+  }
+
+  function loop(){
+    var k=0.16;
+    cur.B0+=(tgt.B0-cur.B0)*k;cur.Ip+=(tgt.Ip-cur.Ip)*k;
+    cur.p0+=(tgt.p0-cur.p0)*k;cur.nu+=(tgt.nu-cur.nu)*k;
+    var eq=computeEq(cur.B0,cur.Ip,cur.p0,cur.nu);
+    drawSection(eq);drawProfiles(eq);
+    var st=drawGauges(eq);
+    if(fr%4===0)updateDom(eq,st);
+    fr++;requestAnimationFrame(loop);
+  }
+
+  function readSliders(){
+    tgt.B0=parseFloat(sB.value);tgt.Ip=parseFloat(sI.value);
+    tgt.p0=parseFloat(sP.value);tgt.nu=parseFloat(sN.value);
+    vB.textContent=tgt.B0.toFixed(1);vI.textContent=tgt.Ip.toFixed(2);
+    vP.textContent=tgt.p0.toFixed(3);vN.textContent=tgt.nu.toFixed(1);
+  }
+  sB.addEventListener('input',readSliders);
+  sI.addEventListener('input',readSliders);
+  sP.addEventListener('input',readSliders);
+  sN.addEventListener('input',readSliders);
+
+  function preset(B0,Ip,p0,nu){sB.value=B0;sI.value=Ip;sP.value=p0;sN.value=nu;readSliders();}
+  document.getElementById('bOhm').addEventListener('click',function(){preset(2,0.7,0.02,1);});
+  document.getElementById('bNbi').addEventListener('click',function(){preset(2,0.7,0.05,1.5);});
+  document.getElementById('bHp').addEventListener('click',function(){preset(2,0.85,0.05,3);});
+  document.getElementById('bPush').addEventListener('click',function(){preset(2,0.6,0.18,1.5);});
+  document.getElementById('bReset').addEventListener('click',function(){preset(2,0.7,0.05,1);});
+
+  if(window.ResizeObserver){
+    var ro=new ResizeObserver(function(){fit();});
+    ro.observe(cs);ro.observe(cf);ro.observe(cg);
+  }
+  window.addEventListener('resize',fit);
+  fit();readSliders();requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>Tokamak V2 — Orbites de particules : piégeage &amp; bananes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0B1118; --panel:#111A24; --screen:#0D141D; --line:#22303E;
+  --text:#E9EEF3; --sec:#93A4B4; --mut:#5E7284;
+  --plasma:#F272AC; --reson:#FF7A5C; --warn:#E8B45A;
+  --steel:#5C89B8; --cuivre:#D9975B;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--text)}
+body{font-family:'IBM Plex Mono',ui-monospace,monospace;padding:28px clamp(14px,4vw,44px) 40px;max-width:1180px;margin:0 auto}
+.eyebrow-row{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.eyebrow{font-size:11px;letter-spacing:.22em;color:var(--mut);text-transform:uppercase}
+.status{font-size:11px;letter-spacing:.1em;padding:6px 10px;border:1px solid var(--line);border-radius:999px;color:var(--sec);white-space:nowrap}
+h1{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:clamp(24px,4vw,34px);letter-spacing:-.02em;margin:10px 0 8px}
+.sub{font-size:12.5px;line-height:1.75;color:var(--sec);max-width:76ch;margin:0 0 22px}
+.sub b{color:var(--text);font-weight:600}
+.controls{display:flex;gap:18px;flex-wrap:wrap;align-items:flex-end;margin:0 0 16px}
+.sl{flex:1;min-width:170px}
+.sl-head{display:flex;justify-content:space-between;font-size:11px;letter-spacing:.06em;color:var(--sec);margin-bottom:8px}
+.sl-head .val{font-weight:600;color:var(--text)}
+.u-b{color:var(--steel)} .u-i{color:var(--cuivre)} .u-r{color:var(--plasma)} .u-p{color:var(--text)}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:2px;background:var(--line);border-radius:1px;outline:none;margin:8px 0}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:7px;height:19px;border-radius:2px;background:var(--sec);cursor:pointer}
+input[type=range]::-moz-range-thumb{width:7px;height:19px;border:none;border-radius:2px;background:var(--sec);cursor:pointer}
+.sl.b input::-webkit-slider-thumb{background:var(--steel)} .sl.b input::-moz-range-thumb{background:var(--steel)}
+.sl.i input::-webkit-slider-thumb{background:var(--cuivre)} .sl.i input::-moz-range-thumb{background:var(--cuivre)}
+.sl.r input::-webkit-slider-thumb{background:var(--plasma)} .sl.r input::-moz-range-thumb{background:var(--plasma)}
+.sl.p input::-webkit-slider-thumb{background:var(--text)} .sl.p input::-moz-range-thumb{background:var(--text)}
+input[type=range]:focus-visible{outline:1px solid var(--steel);outline-offset:6px;border-radius:2px}
+.btnrow{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:0 0 18px}
+.btnrow .lead{font-size:11px;letter-spacing:.08em;color:var(--mut);margin-right:2px}
+.btn{font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;
+  background:transparent;border:1px solid var(--line);color:var(--sec);padding:8px 12px;border-radius:6px;cursor:pointer}
+.btn:hover{border-color:var(--sec);color:var(--text)}
+.btn:focus-visible{outline:1px solid var(--steel);outline-offset:2px}
+.btn.danger{border-color:#4A2A24;color:var(--reson)}
+.btn.danger:hover{border-color:var(--reson)}
+.spacer{margin-left:auto}
+.grid{display:grid;grid-template-columns:7fr 5fr;gap:14px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px}
+.panel-label{font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--mut);margin:0 0 10px}
+.panel canvas{display:block;width:100%;border-radius:8px;background:var(--screen)}
+.scopebar{grid-column:1/-1}
+.readouts{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin:14px 0 0}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+.card .k{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--mut);margin:0 0 8px}
+.card .v{font-size:25px;font-weight:500;margin:0;line-height:1.15}
+.card .s{font-size:11px;color:var(--mut);margin:6px 0 0;min-height:14px}
+footer{font-size:11.5px;line-height:1.8;color:var(--mut);margin-top:26px;border-top:1px solid var(--line);padding-top:14px;max-width:92ch}
+@media (max-width:880px){.grid{grid-template-columns:1fr}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<header>
+  <div class="eyebrow-row">
+    <span class="eyebrow">Tokamak · Simulateur · V2</span>
+    <span class="status" id="status">LANCEMENT</span>
+  </div>
+  <h1>Orbites de particules — piégeage &amp; bananes</h1>
+  <p class="sub">Fini la géométrie : ici une vraie particule chargée est intégrée pas à pas (pousseur de Boris, orbite de Larmor complète) dans le champ <b>B_φ ∝ 1/R</b>. Le champ est plus fort côté intérieur — donc <b>miroir magnétique</b> : les particules à faible <b>v∥/v</b> rebondissent avant d'atteindre la zone de champ fort et dessinent une <b>orbite banane</b> dans le plan poloïdal. Et si tu coupes le courant plasma, la dérive ∇B + courbure n'est plus refermée : la particule sort verticalement.</p>
+</header>
+
+<section class="controls">
+  <div class="sl b">
+    <div class="sl-head"><span class="u-b">Champ toroïdal B₀</span><span class="val" id="vB">2.0</span></div>
+    <input type="range" id="sB" min="1" max="4" step="0.1" value="2" aria-label="Champ toroïdal B0">
+  </div>
+  <div class="sl i">
+    <div class="sl-head"><span class="u-i">Courant plasma I_p</span><span class="val" id="vI">1.00</span></div>
+    <input type="range" id="sI" min="0" max="3" step="0.05" value="1" aria-label="Courant plasma Ip">
+  </div>
+  <div class="sl r">
+    <div class="sl-head"><span class="u-r">Rayon de lancement r/a</span><span class="val" id="vR">0.60</span></div>
+    <input type="range" id="sR" min="0.15" max="0.9" step="0.01" value="0.6" aria-label="Rayon de lancement">
+  </div>
+  <div class="sl p">
+    <div class="sl-head"><span class="u-p">Pitch v∥/v au départ</span><span class="val" id="vP">0.30</span></div>
+    <input type="range" id="sP" min="0.02" max="0.98" step="0.01" value="0.3" aria-label="Pitch v parallèle sur v">
+  </div>
+</section>
+
+<div class="btnrow">
+  <span class="lead">Préréglages&nbsp;:</span>
+  <button class="btn" id="bPass">Passante</button>
+  <button class="btn" id="bBan">Banane</button>
+  <button class="btn" id="bLim">Limite piégeage</button>
+  <button class="btn danger" id="bIp0">Couper I_p</button>
+  <span class="spacer"></span>
+  <button class="btn" id="bFast">Vitesse ×4</button>
+  <button class="btn" id="bPause">Pause</button>
+  <button class="btn" id="bGo">Relancer</button>
+</div>
+
+<main class="grid">
+  <div class="panel">
+    <p class="panel-label">Tore — orbite complète (Larmor inclus)</p>
+    <canvas id="c3" height="340"></canvas>
+  </div>
+  <div class="panel">
+    <p class="panel-label">Plan poloïdal (R−R₀, z) — la banane</p>
+    <canvas id="cp" height="340"></canvas>
+  </div>
+  <div class="panel scopebar">
+    <p class="panel-label">Scope v∥/v — rebonds miroir</p>
+    <canvas id="cv" height="140"></canvas>
+  </div>
+</main>
+
+<section class="readouts">
+  <div class="card"><p class="k">Type d'orbite</p><p class="v" id="rTyp" style="font-size:16px;line-height:1.5">—</p><p class="s" id="rTyps"></p></div>
+  <div class="card"><p class="k">v∥/v instantané</p><p class="v" id="rVp">—</p><p class="s">signe = sens le long de B</p></div>
+  <div class="card"><p class="k">λ critique (théorie)</p><p class="v" id="rLc">—</p><p class="s">√(2ε/(1+ε)), ε = r₀/R₀ — trait rouge sur le pitch</p></div>
+  <div class="card"><p class="k">Excursion radiale Δr</p><p class="v" id="rDr">—</p><p class="s">largeur de la banane si piégée</p></div>
+</section>
+
+<footer>
+Modèle v2 — orbite complète intégrée par pousseur de Boris (E&nbsp;=&nbsp;0, pas de collisions, une seule particule). B_φ&nbsp;=&nbsp;B₀R₀/R, B_θ issu du courant parabolique de la v1. R₀/a&nbsp;=&nbsp;3. Le rapport charge/masse est réduit pour que le rayon de Larmor (~5&nbsp;% de a à B₀&nbsp;=&nbsp;2) reste visible — dans un vrai tokamak ρ_L/a&nbsp;~&nbsp;0,3&nbsp;% pour les ions. Conséquence honnête&nbsp;: bananes et dérives sont ~15× plus grasses qu'en réalité, mais toutes les lois d'échelle sont les bonnes. L'équilibre ∇P&nbsp;=&nbsp;j×B et le décalage de Shafranov, c'est la v3.
+</footer>
+
+<script>
+(function(){
+  var C={screen:'#0D141D',line:'#22303E',wire:'#3A4C5E',mut:'#5E7284',sec:'#93A4B4',text:'#E9EEF3',
+         plasma:'#F272AC',reson:'#FF7A5C',warn:'#E8B45A',steel:'#5C89B8',cuivre:'#D9975B'};
+  var RM=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var c3=document.getElementById('c3'),x3=c3.getContext('2d');
+  var cp=document.getElementById('cp'),xp=cp.getContext('2d');
+  var cv=document.getElementById('cv'),xv=cv.getContext('2d');
+  var sB=document.getElementById('sB'),sI=document.getElementById('sI'),
+      sR=document.getElementById('sR'),sP=document.getElementById('sP');
+  var vB=document.getElementById('vB'),vI=document.getElementById('vI'),
+      vR=document.getElementById('vR'),vP=document.getElementById('vP');
+  var rTyp=document.getElementById('rTyp'),rTyps=document.getElementById('rTyps');
+  var rVp=document.getElementById('rVp'),rLc=document.getElementById('rLc'),rDr=document.getElementById('rDr');
+  var stat=document.getElementById('status');
+  var bPause=document.getElementById('bPause'),bFast=document.getElementById('bFast');
+
+  var R0=3,A=1,TAU=Math.PI*2,QM=10,DT=0.005;
+  var B0=2,Ip=1,rho=0.6,pitch=0.3,lam0=0.3;
+  var P={x:R0+0.6,y:0,z:0},V={x:0,y:0,z:0};
+  var t=0,run=!RM,fast=false,fr=0,lost=false,flips=0,lastSign=0,rmin=1,rmax=0,impact=null;
+  var trail3=[],trailP=[],vbuf=[];
+  var W3=600,H3=340,WP=420,HP=340,WV=1000,HV=140,S3=40,dpr=1;
+
+  function lamCrit(r){var e=r/R0;return Math.sqrt(2*e/(1+e));}
+
+  function fieldAt(px,py,pz){
+    var R=Math.hypot(px,py);if(R<1e-6)R=1e-6;
+    var ux=px/R,uy=py/R;
+    var dR=R-R0,r=Math.hypot(dR,pz);
+    var st=0,ct=1;if(r>1e-9){st=pz/r;ct=dR/r;}
+    var Bphi=B0*R0/Math.max(R,0.3);
+    var Bt=(r<=1)?(2*Ip*r*(1-0.5*r*r)/R0):(Ip/(R0*r));
+    return [-uy*Bphi-st*ux*Bt, ux*Bphi-st*uy*Bt, ct*Bt];
+  }
+
+  function borisStep(){
+    var Bv=fieldAt(P.x,P.y,P.z);
+    var h=0.5*DT*QM;
+    var tx=h*Bv[0],ty=h*Bv[1],tz=h*Bv[2];
+    var t2=tx*tx+ty*ty+tz*tz,s=2/(1+t2);
+    var sx=tx*s,sy=ty*s,sz=tz*s;
+    var vx=V.x,vy=V.y,vz=V.z;
+    var px=vx+(vy*tz-vz*ty),py=vy+(vz*tx-vx*tz),pz=vz+(vx*ty-vy*tx);
+    V.x=vx+(py*sz-pz*sy);V.y=vy+(pz*sx-px*sz);V.z=vz+(px*sy-py*sx);
+    P.x+=V.x*DT;P.y+=V.y*DT;P.z+=V.z*DT;
+  }
+
+  function vparNorm(){
+    var Bv=fieldAt(P.x,P.y,P.z);
+    var Bm=Math.hypot(Bv[0],Bv[1],Bv[2]);if(Bm<1e-9)return 0;
+    var Vm=Math.hypot(V.x,V.y,V.z);if(Vm<1e-9)return 0;
+    return (V.x*Bv[0]+V.y*Bv[1]+V.z*Bv[2])/(Bm*Vm);
+  }
+
+  function relaunch(){
+    lost=false;impact=null;flips=0;lastSign=0;t=0;
+    trail3=[];trailP=[];vbuf=[];
+    lam0=pitch;
+    P={x:R0+rho,y:0,z:0};
+    var Bv=fieldAt(P.x,P.y,P.z);
+    var Bm=Math.hypot(Bv[0],Bv[1],Bv[2]);
+    var bx=Bv[0]/Bm,by=Bv[1]/Bm,bz=Bv[2]/Bm;
+    var ex=by,ey=-bx,ez=0;
+    var em=Math.hypot(ex,ey,ez);
+    if(em<1e-6){ex=1;ey=0;ez=0;em=1;}
+    ex/=em;ey/=em;ez/=em;
+    var vpa=pitch,vpe=Math.sqrt(Math.max(0,1-pitch*pitch));
+    V={x:vpa*bx+vpe*ex, y:vpa*by+vpe*ey, z:vpa*bz+vpe*ez};
+    rmin=rho;rmax=rho;
+  }
+
+  function step(){
+    var sub=fast?240:60,k;
+    for(k=0;k<sub;k++){
+      if(lost)break;
+      borisStep();t+=DT;
+      if(k%3===0){
+        var R=Math.hypot(P.x,P.y),dR=R-R0,r=Math.hypot(dR,P.z);
+        if(r<rmin)rmin=r;if(r>rmax)rmax=r;
+        trailP.push([dR,P.z]);if(trailP.length>6000)trailP.shift();
+        trail3.push([P.x,P.y,P.z]);if(trail3.length>4500)trail3.shift();
+        if(r>1){lost=true;impact=[dR/r,P.z/r];}
+      }
+    }
+    var vp=vparNorm();
+    vbuf.push(vp);if(vbuf.length>1400)vbuf.shift();
+    if(!lost&&Math.abs(vp)>0.03){
+      var sg=vp>0?1:-1;
+      if(lastSign!==0&&sg!==lastSign)flips++;
+      lastSign=sg;
+    }
+    return vp;
+  }
+
+  function fitOne(cvs,ctx,hCss){var r=cvs.getBoundingClientRect();var w=Math.max(220,r.width);
+    cvs.width=Math.round(w*dpr);cvs.height=Math.round(hCss*dpr);cvs.style.height=hCss+'px';
+    ctx.setTransform(dpr,0,0,dpr,0,0);return w;}
+  function fit(){dpr=window.devicePixelRatio||1;
+    W3=fitOne(c3,x3,340);H3=340;
+    WP=fitOne(cp,xp,340);HP=340;
+    WV=fitOne(cv,xv,140);HV=140;
+    S3=Math.min((W3/2-16)/(R0+A),(H3/2-12)/((R0+A)*0.5+A*0.87));}
+
+  function pj(x,y,z){return [W3/2+S3*x, H3/2+8-S3*(0.5*y+0.866*z)];}
+  function pjT(r,th,f){var Rr=R0+r*Math.cos(th);
+    return pj(Rr*Math.cos(f),Rr*Math.sin(f),r*Math.sin(th));}
+  function poly(ctx,pts){var i;ctx.beginPath();
+    for(i=0;i<pts.length;i++){if(i)ctx.lineTo(pts[i][0],pts[i][1]);else ctx.moveTo(pts[i][0],pts[i][1]);}
+    ctx.stroke();}
+
+  function drawTorus(){
+    x3.fillStyle=C.screen;x3.fillRect(0,0,W3,H3);
+    var i,k,f,th,pts;
+    x3.save();x3.globalAlpha=0.30;x3.strokeStyle=C.wire;x3.lineWidth=1;
+    for(k=0;k<2;k++){pts=[];for(i=0;i<=64;i++){f=i/64*TAU;pts.push(pjT(A,k?Math.PI:0,f));}poly(x3,pts);}
+    pts=[];for(i=0;i<=64;i++){f=i/64*TAU;pts.push(pjT(A,Math.PI/2,f));}poly(x3,pts);
+    for(k=0;k<6;k++){f=k*TAU/6;pts=[];for(i=0;i<=36;i++){th=i/36*TAU;pts.push(pjT(A,th,f));}poly(x3,pts);}
+    x3.restore();
+    if(trail3.length>1){
+      x3.save();x3.lineJoin='round';
+      x3.globalAlpha=0.20;x3.strokeStyle=C.plasma;x3.lineWidth=3.2;
+      x3.beginPath();
+      for(i=0;i<trail3.length;i++){var p=pj(trail3[i][0],trail3[i][1],trail3[i][2]);
+        if(i)x3.lineTo(p[0],p[1]);else x3.moveTo(p[0],p[1]);}
+      x3.stroke();
+      x3.globalAlpha=0.85;x3.lineWidth=1.1;x3.stroke();
+      x3.restore();
+      var hp=pj(P.x,P.y,P.z);
+      x3.strokeStyle=lost?C.reson:C.plasma;x3.globalAlpha=0.4;x3.lineWidth=2;
+      x3.beginPath();x3.arc(hp[0],hp[1],7,0,TAU);x3.stroke();
+      x3.globalAlpha=1;x3.fillStyle=lost?C.reson:'#FFD3E7';
+      x3.beginPath();x3.arc(hp[0],hp[1],3,0,TAU);x3.fill();
+    }
+  }
+
+  function drawPol(){
+    xp.fillStyle=C.screen;xp.fillRect(0,0,WP,HP);
+    var cx=WP/2,cy=HP/2,Rp=Math.min(WP,HP)/2-30,i;
+    xp.save();xp.strokeStyle=C.wire;xp.lineWidth=1;
+    var rings=[0.25,0.5,0.75];
+    xp.globalAlpha=0.25;
+    for(i=0;i<rings.length;i++){xp.beginPath();xp.arc(cx,cy,rings[i]*Rp,0,TAU);xp.stroke();}
+    xp.globalAlpha=0.7;xp.lineWidth=1.4;
+    xp.beginPath();xp.arc(cx,cy,Rp,0,TAU);xp.stroke();
+    xp.globalAlpha=0.45;xp.lineWidth=1;xp.setLineDash([4,5]);xp.strokeStyle=C.mut;
+    xp.beginPath();xp.arc(cx,cy,rho*Rp,0,TAU);xp.stroke();
+    xp.setLineDash([]);
+    xp.globalAlpha=0.85;xp.fillStyle=C.mut;xp.font='10px "IBM Plex Mono",monospace';
+    xp.textBaseline='middle';
+    xp.textAlign='right';xp.fillText('B fort',cx-Rp-8,cy);
+    xp.textAlign='left';xp.fillText('B faible',cx+Rp+8,cy);
+    xp.restore();
+    if(trailP.length>1){
+      xp.save();xp.lineJoin='round';
+      xp.globalAlpha=0.28;xp.strokeStyle=C.plasma;xp.lineWidth=3.0;
+      xp.beginPath();
+      for(i=0;i<trailP.length;i++){var q=trailP[i];
+        var px=cx+q[0]*Rp,py=cy-q[1]*Rp;
+        if(i)xp.lineTo(px,py);else xp.moveTo(px,py);}
+      xp.stroke();
+      xp.globalAlpha=0.9;xp.lineWidth=1.1;xp.stroke();
+      xp.restore();
+    }
+    var R=Math.hypot(P.x,P.y);
+    var hx=cx+(R-R0)*Rp,hy=cy-P.z*Rp;
+    xp.fillStyle=lost?C.reson:'#FFD3E7';
+    xp.beginPath();xp.arc(hx,hy,3.2,0,TAU);xp.fill();
+    if(impact){
+      var ix=cx+impact[0]*Rp,iy=cy-impact[1]*Rp;
+      xp.strokeStyle=C.reson;xp.lineWidth=2;xp.globalAlpha=1;
+      xp.beginPath();
+      xp.moveTo(ix-7,iy-7);xp.lineTo(ix+7,iy+7);
+      xp.moveTo(ix-7,iy+7);xp.lineTo(ix+7,iy-7);
+      xp.stroke();
+    }
+  }
+
+  function drawScope(){
+    xv.fillStyle=C.screen;xv.fillRect(0,0,WV,HV);
+    var mL=46,mR=14,mT=12,mB=20;
+    var pw=WV-mL-mR,ph=HV-mT-mB;
+    function Y(v){return mT+ph*(1-(v+1)/2);}
+    xv.strokeStyle=C.line;xv.lineWidth=1;
+    xv.beginPath();xv.moveTo(mL,mT);xv.lineTo(mL,mT+ph);xv.lineTo(mL+pw,mT+ph);xv.stroke();
+    xv.fillStyle=C.mut;xv.font='10px "IBM Plex Mono",monospace';
+    xv.textAlign='right';xv.textBaseline='middle';
+    xv.fillText('+1',mL-8,Y(1));xv.fillText('0',mL-8,Y(0));xv.fillText('−1',mL-8,Y(-1));
+    xv.globalAlpha=0.5;
+    xv.beginPath();xv.moveTo(mL,Y(0));xv.lineTo(mL+pw,Y(0));xv.stroke();
+    var lc=lamCrit(rho);
+    xv.setLineDash([4,5]);xv.strokeStyle=C.warn;xv.globalAlpha=0.4;
+    xv.beginPath();xv.moveTo(mL,Y(lc));xv.lineTo(mL+pw,Y(lc));
+    xv.moveTo(mL,Y(-lc));xv.lineTo(mL+pw,Y(-lc));xv.stroke();
+    xv.setLineDash([]);xv.globalAlpha=1;
+    if(vbuf.length>1){
+      var n=Math.min(vbuf.length,pw),start=vbuf.length-n,i;
+      xv.strokeStyle=C.plasma;xv.lineWidth=1.3;
+      xv.beginPath();
+      for(i=0;i<n;i++){var px=mL+i,py=Y(Math.max(-1,Math.min(1,vbuf[start+i])));
+        if(i)xv.lineTo(px,py);else xv.moveTo(px,py);}
+      xv.stroke();
+    }
+  }
+
+  function setStatus(txt,col){stat.textContent=txt;stat.style.color=col;stat.style.borderColor=col;}
+
+  function updateReadouts(vp){
+    rVp.textContent=(vp>=0?'+':'')+vp.toFixed(2);
+    rLc.textContent=lamCrit(rho).toFixed(2);
+    rDr.textContent=(rmax-rmin).toFixed(2)+' a';
+    var transit=1.3*TAU*R0/Math.max(Math.abs(lam0),0.15);
+    if(lost){
+      var why=(Ip<0.05)?'dérive verticale ∇B + courbure — CQFD':'orbite trop large pour la chambre';
+      rTyp.textContent='Perdue';rTyp.style.color=C.reson;rTyps.textContent=why;
+      setStatus('PARTICULE PERDUE — IMPACT PAROI',C.reson);
+    }else if(flips>0){
+      rTyp.textContent='Piégée — banane';rTyp.style.color=C.plasma;
+      rTyps.textContent='rebonds miroir : '+flips;
+      setStatus('ORBITE BANANE — PIÉGÉE MIROIR',C.plasma);
+    }else if(t>transit){
+      rTyp.textContent='Passante';rTyp.style.color=C.steel;
+      rTyps.textContent='circule sans rebond';
+      setStatus('ORBITE PASSANTE — CONFINÉE',C.steel);
+    }else{
+      rTyp.textContent='Analyse…';rTyp.style.color=C.sec;
+      rTyps.textContent='v∥ sous surveillance';
+      setStatus('INTÉGRATION EN COURS',C.sec);
+    }
+  }
+
+  function loop(){
+    var vp;
+    if(run&&!lost){vp=step();}else{vp=vparNorm();}
+    if(fr%4===0)updateReadouts(vp);
+    drawTorus();drawPol();drawScope();
+    fr++;requestAnimationFrame(loop);
+  }
+
+  function markPitch(){
+    var lc=lamCrit(rho);
+    var pct=((lc-0.02)/(0.98-0.02))*100;
+    sP.style.background='linear-gradient(90deg, var(--line) 0%, var(--line) calc('+pct+'% - 1.5px), var(--reson) calc('+pct+'% - 1.5px), var(--reson) calc('+pct+'% + 1.5px), var(--line) calc('+pct+'% + 1.5px), var(--line) 100%)';
+  }
+
+  function readSliders(){
+    B0=parseFloat(sB.value);Ip=parseFloat(sI.value);
+    rho=parseFloat(sR.value);pitch=parseFloat(sP.value);
+    vB.textContent=B0.toFixed(1);vI.textContent=Ip.toFixed(2);
+    vR.textContent=rho.toFixed(2);vP.textContent=pitch.toFixed(2);
+    markPitch();relaunch();
+  }
+  sB.addEventListener('input',readSliders);
+  sI.addEventListener('input',readSliders);
+  sR.addEventListener('input',readSliders);
+  sP.addEventListener('input',readSliders);
+
+  function setPitch(v){v=Math.max(0.02,Math.min(0.98,v));sP.value=v;readSliders();}
+  document.getElementById('bPass').addEventListener('click',function(){setPitch(0.85);});
+  document.getElementById('bBan').addEventListener('click',function(){setPitch(0.25);});
+  document.getElementById('bLim').addEventListener('click',function(){setPitch(0.98*lamCrit(rho));});
+  document.getElementById('bIp0').addEventListener('click',function(){sI.value=0;readSliders();});
+  bFast.addEventListener('click',function(){fast=!fast;bFast.textContent=fast?'Vitesse ×1':'Vitesse ×4';});
+  bPause.addEventListener('click',function(){run=!run;bPause.textContent=run?'Pause':'Reprendre';});
+  document.getElementById('bGo').addEventListener('click',function(){relaunch();});
+  if(RM){bPause.textContent='Reprendre';}
+
+  if(window.ResizeObserver){
+    var ro=new ResizeObserver(function(){fit();});
+    ro.observe(c3);ro.observe(cp);ro.observe(cv);
+  }
+  window.addEventListener('resize',fit);
+  fit();markPitch();relaunch();updateReadouts(pitch);requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
