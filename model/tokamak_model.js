@@ -16,7 +16,8 @@ var MP={CR:0.0008,WSAT:0.35,W32SAT:0.25,WSEED:0.004,W32SEED:0.003,
   CPL:10,D32:-0.3,LBOOST:1.5,TAUV:20,LOCKFRAC:0.15,TAULOCK:1.5,
   TAUE:40,DEG:1.2,SAWP:24,SAWDROP:0.92,SAWTE:0.55,
   TQTAU:0.8,TQTE:0.03,CQTE:0.15,SPIKE0:0.08,SPTAU:1.2,CQBASE:6,CQK:50,ENDIP:0.02,
-  DRS:0.306,MIRA:0.4,TMAX:2500};
+  DRS:0.306,MIRA:0.4,TMAX:2500,
+  PRB:0.05,PRW:0.6,PRTAU:5,PRSP:1.0,PRSPT:2,NECQ:0.4,NETAU:25,NESP:0.5,NESPT:6};
 function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;var t=Math.imul(a^a>>>15,1|a);
   t=t+Math.imul(t^t>>>7,61|t)^t;return ((t^t>>>14)>>>0)/4294967296;};}
 function makeGauss(rng){var spare=null;return function(){
@@ -28,16 +29,20 @@ function newState(P){
   return {t:0,W21:MP.WSEED,W32:MP.W32SEED,Om:2*Math.PI*P.f0,Om0:2*Math.PI*P.f0,
     locked:false,tq:false,cq:false,ended:false,
     Te:1,Ip:1,spike:0,sawT:0,rotPh:0,K:0,phaseId:0,
-    nM:0,nT:0,nI:0,
+    Prad:MP.PRB,Ne:1,prSpike:0,neSpike:0,
+    nM:0,nT:0,nI:0,nP:0,nN:0,
     tLock:-1,tTQ:-1,tCQ:-1,tEnd:-1};
 }
 function stepModel(S,P,g,dt){
   if(S.ended){
     S.t+=dt;
     S.Te+=(0-S.Te)*dt/20;S.Ip+=(0-S.Ip)*dt/20;
+    S.Prad+=(0-S.Prad)*dt/20;S.Ne+=(0-S.Ne)*dt/20;
+    S.prSpike*=Math.exp(-dt/MP.PRSPT);S.neSpike*=Math.exp(-dt/MP.NESPT);
     var sg0=(P.noise/100)*0.2431;
     S.nM=0.97*S.nM+sg0*0.8*g();S.nT=0.97*S.nT+sg0*g();S.nI=0.97*S.nI+sg0*0.6*g();
-    return {mir:S.nM,te:S.Te+S.nT,ip:S.Ip+S.nI};
+    S.nP=0.97*S.nP+sg0*g();S.nN=0.97*S.nN+sg0*0.5*g();
+    return {mir:S.nM,te:S.Te+S.nT,ip:S.Ip+S.nI,prad:S.Prad+S.prSpike+S.nP,ne:S.Ne+S.neSpike+S.nN};
   }
   var eta=Math.pow(Math.max(S.Te,0.02),-1.5);
   var dEff=P.d0+(S.locked?MP.LBOOST:0);
@@ -53,7 +58,7 @@ function stepModel(S,P,g,dt){
     if(S.Om<MP.LOCKFRAC*S.Om0){S.locked=true;S.tLock=S.t;}
   }else{S.Om+=(0-S.Om)*dt/MP.TAULOCK;}
   S.K=(S.W21+S.W32)/MP.DRS;
-  if(!S.tq&&S.K>=1){S.tq=true;S.tTQ=S.t;S.spike=MP.SPIKE0;}
+  if(!S.tq&&S.K>=1){S.tq=true;S.tTQ=S.t;S.spike=MP.SPIKE0;S.prSpike=MP.PRSP;S.neSpike=MP.NESP;}
   if(S.tq){S.Te+=(MP.TQTE-S.Te)*dt/MP.TQTAU;}
   else{
     var teq=Math.max(0.1,1-MP.DEG*(S.W21+S.W32));
@@ -68,6 +73,11 @@ function stepModel(S,P,g,dt){
     S.Ip+=(-S.Ip/tcq)*dt;
     if(S.Ip<MP.ENDIP){S.Ip=MP.ENDIP;S.ended=true;S.tEnd=S.t;}
   }
+  var prEq=MP.PRB+MP.PRW*(S.W21+S.W32);
+  S.Prad+=(prEq-S.Prad)*dt/MP.PRTAU;
+  S.prSpike*=Math.exp(-dt/MP.PRSPT);
+  S.Ne+=((S.cq?MP.NECQ:1)-S.Ne)*dt/MP.NETAU;
+  S.neSpike*=Math.exp(-dt/MP.NESPT);
   S.rotPh+=S.Om*dt;
   var mir=0;
   if(!S.ended){
@@ -79,13 +89,16 @@ function stepModel(S,P,g,dt){
   S.nM=0.97*S.nM+sg*0.8*g();
   S.nT=0.97*S.nT+sg*g();
   S.nI=0.97*S.nI+sg*0.6*g();
+  S.nP=0.97*S.nP+sg*g();
+  S.nN=0.97*S.nN+sg*0.5*g();
   if(S.t<S.tLock||S.tLock<0){if(S.W21>=0.03)S.phaseId=1;else S.phaseId=0;}
   if(S.locked)S.phaseId=2;
   if(S.tq)S.phaseId=3;
   if(S.cq)S.phaseId=4;
   if(S.ended)S.phaseId=5;
   S.t+=dt;
-  return {mir:mir+S.nM,te:S.Te+S.nT,ip:S.Ip+S.spike+S.nI};
+  return {mir:mir+S.nM,te:S.Te+S.nT,ip:S.Ip+S.spike+S.nI,
+    prad:S.Prad+S.prSpike+S.nP,ne:S.Ne+S.neSpike+S.nN};
 }
 /*MODEL-END*/
   return {

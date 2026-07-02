@@ -30,8 +30,8 @@ test('générateur : manifest cohérent, fichiers présents, format CSV conforme
       assert.equal(lignes[0], '# tokamak_v5 synthetic shot');
       assert.match(lignes[1], /^# seed=\d+ delta0=-?[\d.]+ f0_khz=[\d.]+ cb=[\d.]+ noise_pct=[\d.]+$/);
       assert.match(lignes[2], /^# t_lock_ms=(NA|[\d.]+) t_tq_ms=(NA|[\d.]+) t_cq_ms=(NA|[\d.]+)$/);
-      assert.equal(lignes[3], 't_ms,mirnov,te,ip,w21,w32,k_chirikov,f_khz,locked,phase');
-      assert.match(lignes[4], /^\d+\.\d{2},-?\d+\.\d{5},-?\d+\.\d{5},-?\d+\.\d{5},\d+\.\d{5},\d+\.\d{5},\d+\.\d{4},-?\d+\.\d{4},[01],[0-5]$/);
+      assert.equal(lignes[3], 't_ms,mirnov,te,ip,prad,ne,w21,w32,k_chirikov,f_khz,locked,phase');
+      assert.match(lignes[4], /^\d+\.\d{2},-?\d+\.\d{5},-?\d+\.\d{5},-?\d+\.\d{5},-?\d+\.\d{5},-?\d+\.\d{5},\d+\.\d{5},\d+\.\d{5},\d+\.\d{4},-?\d+\.\d{4},[01],[0-5]$/);
       assert.equal(lignes.length - 4, tir.n_lignes_csv);
       // Le label visé correspond à l'issue réelle, elle-même cohérente avec t_tq
       assert.equal(tir.disrupte, tir.t_tq_ms !== null);

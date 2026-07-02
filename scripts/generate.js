@@ -57,10 +57,11 @@ function tire(rng, [lo, hi], decimales) {
 // échantillon poussé après stepModel (S.t déjà incrémenté).
 function runShot(P, seed) {
   const rng = M.mulberry32(seed), g = M.makeGauss(rng), S = M.newState(P);
-  const A = { t: [], m: [], te: [], ip: [], w1: [], w2: [], k: [], f: [], lk: [], ph: [] };
+  const A = { t: [], m: [], te: [], ip: [], pr: [], ne: [], w1: [], w2: [], k: [], f: [], lk: [], ph: [] };
   while (S.t < M.MP.TMAX && !(S.ended && S.t > S.tEnd + 60)) {
     const meas = M.stepModel(S, P, g, DT);
     A.t.push(S.t); A.m.push(meas.mir); A.te.push(meas.te); A.ip.push(meas.ip);
+    A.pr.push(meas.prad); A.ne.push(meas.ne);
     A.w1.push(S.W21); A.w2.push(S.W32); A.k.push(S.K);
     A.f.push(S.Om / (2 * Math.PI)); A.lk.push(S.locked ? 1 : 0); A.ph.push(S.phaseId);
   }
@@ -75,9 +76,10 @@ function buildCsv(seed, P, S, A) {
   L.push('# t_lock_ms=' + (S.tLock >= 0 ? S.tLock.toFixed(2) : 'NA') +
          ' t_tq_ms=' + (S.tTQ >= 0 ? S.tTQ.toFixed(2) : 'NA') +
          ' t_cq_ms=' + (S.tCQ >= 0 ? S.tCQ.toFixed(2) : 'NA'));
-  L.push('t_ms,mirnov,te,ip,w21,w32,k_chirikov,f_khz,locked,phase');
+  L.push('t_ms,mirnov,te,ip,prad,ne,w21,w32,k_chirikov,f_khz,locked,phase');
   for (let i = 0; i < A.t.length; i += CSV_STRIDE) {
     L.push(A.t[i].toFixed(2) + ',' + A.m[i].toFixed(5) + ',' + A.te[i].toFixed(5) + ',' + A.ip[i].toFixed(5) + ',' +
+           A.pr[i].toFixed(5) + ',' + A.ne[i].toFixed(5) + ',' +
            A.w1[i].toFixed(5) + ',' + A.w2[i].toFixed(5) + ',' + A.k[i].toFixed(4) + ',' +
            A.f[i].toFixed(4) + ',' + A.lk[i] + ',' + A.ph[i]);
   }

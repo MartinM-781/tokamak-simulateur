@@ -19,7 +19,7 @@ function runShot(P, seed) {
   const rng = M.mulberry32(seed);
   const g = M.makeGauss(rng);
   const S = M.newState(P);
-  const out = { t: [], mir: [], te: [], ip: [], teEtat: [], dents: 0 };
+  const out = { t: [], mir: [], te: [], ip: [], prad: [], ne: [], teEtat: [], dents: 0 };
   let tePrec = S.Te;
   while (S.t < M.MP.TMAX && !(S.ended && S.t > S.tEnd + 60)) {
     const meas = M.stepModel(S, P, g, DT);
@@ -27,6 +27,8 @@ function runShot(P, seed) {
     out.mir.push(meas.mir);
     out.te.push(meas.te);
     out.ip.push(meas.ip);
+    out.prad.push(meas.prad);
+    out.ne.push(meas.ne);
     out.teEtat.push(S.Te);
     // Dent de scie : chute de S.Te de plus de 5 % en un seul pas (le crash
     // est instantané : Te *= 0.92 ; hors crash, |dTe| par pas << 1 %).
@@ -100,6 +102,34 @@ test('sain (seed 42) : T_e (état vrai) toujours > 0.8', () => {
 test('sain (seed 42) : au moins 80 dents de scie', () => {
   const { dents } = runShot(SAIN, 42);
   assert.ok(dents >= 80, `dents de scie=${dents}`);
+});
+
+test('classique (seed 42) : P_rad pique au quench thermique', () => {
+  // Références mesurées : pic prad = 1.203 dans [tTQ, tTQ+5 ms] (flash
+  // radiatif PRSP), max pré-TQ = 0.237 (montée douce ∝ W21+W32).
+  const { t, prad, S } = runShot(CLASSIQUE, 42);
+  let picTQ = -1, maxPre = 0;
+  for (let i = 0; i < t.length; i++) {
+    if (S.tTQ >= 0 && t[i] >= S.tTQ && t[i] <= S.tTQ + 5) picTQ = Math.max(picTQ, prad[i]);
+    if (t[i] < S.tTQ && prad[i] > maxPre) maxPre = prad[i];
+  }
+  assert.ok(picTQ >= 0.8 && picTQ <= 1.6, `pic prad au TQ=${picTQ}`);
+  assert.ok(maxPre < 0.5, `prad max pré-TQ=${maxPre}`);
+});
+
+test('classique (seed 42) : bouffée de densité au quench thermique', () => {
+  // Référence mesurée : ne max = 1.489 (influx NESP au TQ), ne ≈ 1 avant.
+  const { ne } = runShot(CLASSIQUE, 42);
+  const max = Math.max(...ne);
+  assert.ok(max >= 1.2 && max <= 1.8, `ne max=${max}`);
+});
+
+test('sain (seed 42) : P_rad bas et densité stable sur tout le tir', () => {
+  // Références mesurées : prad max = 0.113, ne ∈ [0.970, 1.026].
+  const { prad, ne } = runShot(SAIN, 42);
+  assert.ok(Math.max(...prad) < 0.3, `prad max=${Math.max(...prad)}`);
+  assert.ok(Math.min(...ne) > 0.9 && Math.max(...ne) < 1.1,
+    `ne ∈ [${Math.min(...ne)}, ${Math.max(...ne)}]`);
 });
 
 test('reproductibilité : même seed ⇒ séries strictement identiques', () => {

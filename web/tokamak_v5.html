@@ -126,7 +126,7 @@ footer{font-size:11.5px;line-height:1.8;color:var(--mut);margin-top:26px;border-
 </details>
 
 <footer>
-Modèle v5 (0D, unités arbitraires, t en ms) — Rutherford saturé&nbsp;: dW/dt&nbsp;=&nbsp;c_R·η̂(T_e)·Δ′_eff·(1−W/W_sat), η̂&nbsp;=&nbsp;T_e^(−3/2)&nbsp;; verrouillage par couple de paroi ∝&nbsp;c_b·W²·Ω, perte d'écrantage après verrouillage (Δ′&nbsp;boosté)&nbsp;; couplage 2/1&nbsp;→&nbsp;3/2&nbsp;; r_s et Δr_s hérités de la v4. T_e&nbsp;: confinement dégradé par les îlots, dents de scie (q₀&nbsp;&lt;&nbsp;1, v3) tant que le cœur est chaud, effondrement en ~0,8&nbsp;ms au quench. I_p&nbsp;: pic de quench (aplatissement du profil) puis décroissance L/R avec τ&nbsp;∝&nbsp;T_e^(3/2). Mirnov&nbsp;∝&nbsp;W²·Ω (rappel v4&nbsp;: W&nbsp;∝&nbsp;√δB&nbsp;⇔&nbsp;δB&nbsp;∝&nbsp;W²). Bruit AR(1) reproductible par graine. Colonnes CSV&nbsp;: mesures (mirnov, te, ip) + vérité terrain (w21, w32, k, f, locked, phase 0–5). Ce n'est pas un code de production — c'est un générateur pédagogique de précurseurs plausibles.
+Modèle v5 (0D, unités arbitraires, t en ms) — Rutherford saturé&nbsp;: dW/dt&nbsp;=&nbsp;c_R·η̂(T_e)·Δ′_eff·(1−W/W_sat), η̂&nbsp;=&nbsp;T_e^(−3/2)&nbsp;; verrouillage par couple de paroi ∝&nbsp;c_b·W²·Ω, perte d'écrantage après verrouillage (Δ′&nbsp;boosté)&nbsp;; couplage 2/1&nbsp;→&nbsp;3/2&nbsp;; r_s et Δr_s hérités de la v4. T_e&nbsp;: confinement dégradé par les îlots, dents de scie (q₀&nbsp;&lt;&nbsp;1, v3) tant que le cœur est chaud, effondrement en ~0,8&nbsp;ms au quench. I_p&nbsp;: pic de quench (aplatissement du profil) puis décroissance L/R avec τ&nbsp;∝&nbsp;T_e^(3/2). Mirnov&nbsp;∝&nbsp;W²·Ω (rappel v4&nbsp;: W&nbsp;∝&nbsp;√δB&nbsp;⇔&nbsp;δB&nbsp;∝&nbsp;W²). Bruit AR(1) reproductible par graine. Colonnes CSV&nbsp;: mesures (mirnov, te, ip, prad, ne — P_rad pique au quench thermique, la densité fait une bouffée d'influx) + vérité terrain (w21, w32, k, f, locked, phase 0–5). Ce n'est pas un code de production — c'est un générateur pédagogique de précurseurs plausibles.
 </footer>
 
 <script src="../model/tokamak_model.js"></script>
@@ -160,17 +160,18 @@ var MP=TokamakModel.MP,mulberry32=TokamakModel.mulberry32,makeGauss=TokamakModel
   var P={d0:1,f0:3,cb:20,noise:1.5};
   var seed=42,rng,gauss,S;
   var run=!RM,fast=false,fr=0,dpr=1,WC=1000,HC=520;
-  var A={t:[],m:[],te:[],ip:[],w1:[],w2:[],k:[],f:[],lk:[],ph:[]};
+  var A={t:[],m:[],te:[],ip:[],pr:[],ne:[],w1:[],w2:[],k:[],f:[],lk:[],ph:[]};
 
   function resetShot(){
     rng=mulberry32(seed);gauss=makeGauss(rng);
     S=newState(P);
-    A={t:[],m:[],te:[],ip:[],w1:[],w2:[],k:[],f:[],lk:[],ph:[]};
+    A={t:[],m:[],te:[],ip:[],pr:[],ne:[],w1:[],w2:[],k:[],f:[],lk:[],ph:[]};
     shotLab.textContent='TIR #'+seed;
   }
 
   function pushSample(meas){
     A.t.push(S.t);A.m.push(meas.mir);A.te.push(meas.te);A.ip.push(meas.ip);
+    A.pr.push(meas.prad);A.ne.push(meas.ne);
     A.w1.push(S.W21);A.w2.push(S.W32);A.k.push(S.K);
     A.f.push(S.Om/(2*Math.PI));A.lk.push(S.locked?1:0);A.ph.push(S.phaseId);
   }
@@ -295,10 +296,11 @@ var MP=TokamakModel.MP,mulberry32=TokamakModel.mulberry32,makeGauss=TokamakModel
     L.push('# tokamak_v5 synthetic shot');
     L.push('# seed='+seed+' delta0='+P.d0+' f0_khz='+P.f0+' cb='+P.cb+' noise_pct='+P.noise);
     L.push('# t_lock_ms='+(S.tLock>=0?S.tLock.toFixed(2):'NA')+' t_tq_ms='+(S.tTQ>=0?S.tTQ.toFixed(2):'NA')+' t_cq_ms='+(S.tCQ>=0?S.tCQ.toFixed(2):'NA'));
-    L.push('t_ms,mirnov,te,ip,w21,w32,k_chirikov,f_khz,locked,phase');
+    L.push('t_ms,mirnov,te,ip,prad,ne,w21,w32,k_chirikov,f_khz,locked,phase');
     var i,st=2;
     for(i=0;i<A.t.length;i+=st){
       L.push(A.t[i].toFixed(2)+','+A.m[i].toFixed(5)+','+A.te[i].toFixed(5)+','+A.ip[i].toFixed(5)+','+
+             A.pr[i].toFixed(5)+','+A.ne[i].toFixed(5)+','+
              A.w1[i].toFixed(5)+','+A.w2[i].toFixed(5)+','+A.k[i].toFixed(4)+','+
              A.f[i].toFixed(4)+','+A.lk[i]+','+A.ph[i]);
     }
