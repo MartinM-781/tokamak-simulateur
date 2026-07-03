@@ -65,7 +65,7 @@ const rms = a => Math.sqrt(a.reduce((s, x) => s + x * x, 0) / a.length);
 const moy = a => a.reduce((s, x) => s + x, 0) / a.length;
 
 test('réseau Mirnov : la structure poloïdale m=2 domine pendant le précurseur', () => {
-  const o = shot(CLASSIQUE, 42, 3.6);
+  const o = shot(CLASSIQUE, 42, M.C.TMAX);
   const { S, rows } = o;
   assert.ok(S.tLock > 0, 'le tir de référence doit se verrouiller');
   const i0 = Math.floor((S.tLock - 0.4) * RATE), i1 = Math.floor((S.tLock - 0.1) * RATE);
@@ -77,7 +77,7 @@ test('réseau Mirnov : la structure poloïdale m=2 domine pendant le précurseur
 });
 
 test('boucles à selle : le mode verrouillé reste visible quand les Mirnov se taisent', () => {
-  const o = shot(CLASSIQUE, 42, 3.6);
+  const o = shot(CLASSIQUE, 42, M.C.TMAX);
   const { S, rows } = o;
   const iTot = Math.floor(0.2 * RATE), iTot1 = Math.floor(0.5 * RATE);
   const iLk = Math.floor((S.tLock + 0.05) * RATE), iLk1 = Math.floor((S.tTQ - 0.01) * RATE);
@@ -92,6 +92,13 @@ test('boucles à selle : le mode verrouillé reste visible quand les Mirnov se t
   // …pendant que la bobine dB/dt retombe vers son plancher de bruit.
   assert.ok(rms(coilLock) < 0.3 * rms(coilPh1),
     `rms bobine verrouillé=${rms(coilLock)} vs précurseur=${rms(coilPh1)}`);
+  // Bornes ABSOLUES de calibration (les ratios ci-dessus n'y suffisent pas) :
+  // mode verrouillé de l'ordre du mT (détecteurs réels : 0.1-10 mT), bobines
+  // de l'ordre du T/s pendant le précurseur.
+  assert.ok(moy(n1Lock) >= 2e-4 && moy(n1Lock) <= 2e-2,
+    `amplitude n1 verrouillée=${(moy(n1Lock) * 1e3).toFixed(2)} mT (attendu ~mT)`);
+  assert.ok(rms(coilPh1) >= 0.2 && rms(coilPh1) <= 50,
+    `rms bobine précurseur=${rms(coilPh1)} T/s (attendu ~T/s)`);
 });
 
 test('ECE : dents de scie inversées — le cœur chute, l’extérieur reçoit le pulse', () => {
@@ -131,7 +138,7 @@ test('ECE : l’îlot aplatit le profil au voisinage de q=2 (test unitaire, sans
 });
 
 test('bolomètre : le flash du quench est lissé et retardé par le temps de réponse', () => {
-  const o = shot(CLASSIQUE, 42, 3.6);
+  const o = shot(CLASSIQUE, 42, M.C.TMAX);
   const { rows, pradMW, S } = o;
   const flashMax = Math.max(...pradMW);
   let boloMax = 0, tBoloMax = 0;

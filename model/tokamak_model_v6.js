@@ -200,7 +200,11 @@ function stepModel(S, P, g, dt) {
   var teRs = C.TERSFRAC * S.Te0;
   var gamma = 1.22 * etaSpitzer(teRs, M.ZEFF, C.NEO) / C.MU0;   // m²/s
   var wa = S.w / M.A;
-  var dEff = (p.d0a * (1 - S.w / (C.WSAT * M.A)) + (S.locked ? C.LBOOST : 0)) / M.A;
+  // La saturation non linéaire (1 − w/w_sat) borne la CROISSANCE de l'îlot,
+  // quelle que soit l'origine du Δ′ : elle multiplie donc aussi le boost de
+  // verrouillage (sinon, Δ′ resterait fini à w = w_sat et seul le clamp
+  // arrêterait l'emballement post-quench, quand η explose avec Te qui chute).
+  var dEff = (p.d0a + (S.locked ? C.LBOOST : 0)) * (1 - S.w / (C.WSAT * M.A)) / M.A;
   if (p.bs > 0) {
     var bp = betaP(M, S.Te0, p.n19, S.Ip);
     dEff += p.bs * Math.sqrt(M.EPSS) * bp * wa / (wa * wa + C.WDBS * C.WDBS) / M.A;
@@ -219,6 +223,9 @@ function stepModel(S, P, g, dt) {
   if (!S.locked) {
     var brake = (C.CW * p.cwf / M.TAUW) * Math.pow(wa, 4) * S.Om / (1 + S.Om * M.TAUW);
     S.Om += ((S.Om0 - S.Om) / tauE - brake) * dt;
+    // Le couple de paroi freine, il n'inverse jamais la rotation : borne
+    // physique qui protège aussi d'un dépassement d'Euler à fort freinage.
+    if (S.Om < 0) S.Om = 0;
     if (S.Om < C.LOCKFRAC * S.Om0) { S.locked = true; S.tLock = S.t; S.wAtLock = S.w; }
   } else {
     S.Om += (0 - S.Om) * dt / C.TAULOCK;

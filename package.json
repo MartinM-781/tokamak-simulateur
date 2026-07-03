@@ -4,6 +4,7 @@
   "private": true,
   "description": "Suite pédagogique tokamak + générateur de datasets synthétiques de disruptions",
   "scripts": {
-    "test": "node --test tests/"
+    "test": "node --test tests/",
+    "valide": "node scripts/valide_v6.js"
   }
 }

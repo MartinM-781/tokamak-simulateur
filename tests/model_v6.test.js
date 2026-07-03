@@ -22,10 +22,12 @@ function runShot(P, seed) {
     ipPeakMA: 0, teMinApres05: 99, teMaxApres05: 0,
     tqT80: -1, tqT20: -1, cqT80: -1, cqT20: -1,
   };
+  o.omAtLock = -1;
   let tePrec = S.Te0, elmPrec = 0, tePreTQ = -1, ipPreCQ = -1, tSample = 0;
   while (S.t < M.C.TMAX && !(S.ended && S.t > S.tEnd + 0.1)) {
     const dt = M.chooseDt(S);
     const meas = M.stepModel(S, P, g, dt);
+    if (S.locked && o.omAtLock < 0) o.omAtLock = S.Om / S.Om0;
     if (S.t >= tSample) { // échantillonnage 1 kHz
       o.t.push(S.t); o.mir.push(meas.mir); o.te.push(meas.te); o.ip.push(meas.ip);
       o.prad.push(meas.prad); o.ne.push(meas.ne); o.teEtat.push(S.Te0);
@@ -129,9 +131,36 @@ test('classique (d0a=1, seed 42) : chaîne complète ordonnée onset → lock �
     `${S.tLock} < ${S.tTQ} < ${S.tCQ} < ${S.tEnd}`);
 });
 
-test('classique : verrouillage à une largeur d’îlot de quelques cm (Sweeney)', () => {
-  const { S } = shot(CLASSIQUE, 42);
-  assert.ok(S.wAtLock >= 0.015 && S.wAtLock <= 0.06, `w au lock=${S.wAtLock} m`);
+test('classique : verrouillage à une largeur d’îlot de quelques cm (Sweeney, 3 seeds)', () => {
+  for (const seed of [42, 43, 44]) {
+    const { S } = shot(CLASSIQUE, seed);
+    assert.ok(S.wAtLock >= 0.015 && S.wAtLock <= 0.06, `seed ${seed} : w au lock=${S.wAtLock} m`);
+  }
+});
+
+test('verrouillage : le drapeau locked marque un vrai effondrement de la rotation', () => {
+  // Vérité terrain des datasets ML : au moment où locked passe à vrai, la
+  // rotation doit s'être réellement effondrée (Ω ≤ 10 % de Ω0), pas seulement
+  // ralentie. Ajouté après test par mutation : LOCKFRAC 0.05→0.3 passait
+  // inaperçu car la branche verrouillée écrase Ω ensuite de toute façon.
+  for (const seed of [42, 43, 44]) {
+    const o = shot(CLASSIQUE, seed);
+    assert.ok(o.omAtLock >= 0 && o.omAtLock <= 0.1,
+      `seed ${seed} : Ω/Ω0 au verrouillage=${o.omAtLock}`);
+  }
+});
+
+test('calibration du couple de paroi : w_lock de référence dans [2.5, 4.2] cm', () => {
+  // Plus étroit que la bande littérature [1.5, 6] cm du test Sweeney : ce
+  // test ÉPINGLE la calibration de C.CW sur le scénario de référence (un
+  // CW divisé par 4 donne w_lock ≈ 4.7 cm, indétectable par la bande large —
+  // test par mutation). Re-calibrer CW exige de mettre à jour ces bornes,
+  // avec justification dans le commit.
+  for (const seed of [42, 43, 44]) {
+    const { S } = shot(CLASSIQUE, seed);
+    assert.ok(S.wAtLock >= 0.025 && S.wAtLock <= 0.042,
+      `seed ${seed} : w au lock=${S.wAtLock} m`);
+  }
 });
 
 test('classique : durées de précurseur à l’échelle JET (de Vries)', () => {
@@ -141,10 +170,12 @@ test('classique : durées de précurseur à l’échelle JET (de Vries)', () => 
   assert.ok(total >= 0.3 && total <= 8, `précurseur total=${total} s`);
 });
 
-test('classique : quench thermique en 0.05–1.5 ms (chute Te 80→20 %)', () => {
-  const o = shot(CLASSIQUE, 42);
-  const duree = (o.tqT20 - o.tqT80) * 1e3;
-  assert.ok(o.tqT80 > 0 && duree >= 0.05 && duree <= 1.5, `TQ 80→20=${duree} ms`);
+test('classique : quench thermique en 0.05–1.5 ms (chute Te 80→20 %, 3 seeds)', () => {
+  for (const seed of [42, 43, 44]) {
+    const o = shot(CLASSIQUE, seed);
+    const duree = (o.tqT20 - o.tqT80) * 1e3;
+    assert.ok(o.tqT80 > 0 && duree >= 0.05 && duree <= 1.5, `seed ${seed} : TQ 80→20=${duree} ms`);
+  }
 });
 
 test('classique : pic d’Ip de +2 à +10 % (aplatissement du profil)', () => {
@@ -153,12 +184,48 @@ test('classique : pic d’Ip de +2 à +10 % (aplatissement du profil)', () => {
   assert.ok(pic >= 1.02 && pic <= 1.10, `pic Ip=${pic}×Ip0`);
 });
 
-test('classique : quench de courant 80→20 % normalisé dans [1.7, 30] ms/m² (ITER/JET)', () => {
-  const o = shot(CLASSIQUE, 42);
-  const norme = (o.cqT20 - o.cqT80) / (Math.PI * MJ.A * MJ.A * MJ.KAPPA) * 1e3;
-  assert.ok(o.cqT80 > 0 && norme >= 1.7 && norme <= 30, `CQ normalisé=${norme} ms/m²`);
-  const totale = o.S.tEnd - o.S.tCQ;
-  assert.ok(totale >= 0.02 && totale <= 0.15, `durée CQ totale=${totale} s`);
+test('classique : quench de courant 80→20 % normalisé dans [1.7, 30] ms/m² (ITER/JET, 3 seeds)', () => {
+  for (const seed of [42, 43, 44]) {
+    const o = shot(CLASSIQUE, seed);
+    const norme = (o.cqT20 - o.cqT80) / (Math.PI * MJ.A * MJ.A * MJ.KAPPA) * 1e3;
+    assert.ok(o.cqT80 > 0 && norme >= 1.7 && norme <= 30, `seed ${seed} : CQ normalisé=${norme} ms/m²`);
+    const totale = o.S.tEnd - o.S.tCQ;
+    assert.ok(totale >= 0.02 && totale <= 0.15, `seed ${seed} : durée CQ totale=${totale} s`);
+  }
+});
+
+test('fiabilité : convergence en dt — les événements ne dépendent pas du pas', () => {
+  // Dynamique isolée des tirages (elm=0) ; dt et dt/2 doivent donner les
+  // mêmes temps d'événements à mieux que 1 % (validation complète : dt/4
+  // dans scripts/valide_v6.js).
+  const P = { d0a: 1, elm: 0 };
+  const run = (scale) => {
+    const rng = M.mulberry32(42), g = M.makeGauss(rng), S = M.newState(P, rng);
+    while (S.t < M.C.TMAX && !(S.ended && S.t > S.tEnd + 0.05)) {
+      M.stepModel(S, P, g, M.chooseDt(S) * scale);
+    }
+    return S;
+  };
+  const a = run(1), b = run(0.5);
+  for (const ev of ['tLock', 'tTQ', 'tEnd']) {
+    assert.ok(Math.abs(a[ev] - b[ev]) / b[ev] < 0.01, `${ev} : ${a[ev]} vs ${b[ev]}`);
+  }
+});
+
+test('fiabilité : le bruit de mesure ne modifie jamais la dynamique', () => {
+  // Le bruit est purement observationnel : mêmes tirages, seule l'échelle σ
+  // change ⇒ les événements doivent être STRICTEMENT identiques.
+  const a = shot({ d0a: 1, noise: 0 }, 42).S;
+  const b = shot({ d0a: 1, noise: 5 }, 42).S;
+  assert.equal(a.tLock, b.tLock);
+  assert.equal(a.tTQ, b.tTQ);
+  assert.equal(a.tCQ, b.tCQ);
+  assert.equal(a.tEnd, b.tEnd);
+});
+
+test('fiabilité : tTQ décroît strictement avec l’instabilité d0a', () => {
+  const ts = [0.8, 1.4, 2.4].map(d0a => shot({ d0a, elm: 0 }, 42).S.tTQ);
+  assert.ok(ts[0] > ts[1] && ts[1] > ts[2], ts.join(' > '));
 });
 
 test('CQ : la durée varie d’un tir à l’autre (plateau post-quench 6–16 eV)', () => {

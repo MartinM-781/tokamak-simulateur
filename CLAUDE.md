@@ -55,6 +55,10 @@ de disruptions par détection d'anomalies sur séries temporelles.
 
 - Node ≥ 18 (aucune dépendance npm), Python ≥ 3.10 (venv dans `ml/.venv`).
 - `npm test` — tests de régression physique.
+- `npm run valide` — batterie de validation du moteur v6 (convergence en dt,
+  balayage extrême anti-NaN, propriétés métamorphiques, bornes des
+  diagnostics). À lancer avant toute campagne de recherche et après toute
+  modification physique du v6 ; `--rapide` pour un balayage réduit.
 - `node scripts/generate.js --shots N --out data/runXX --disrupt-ratio R --seed-base S`
   — génération de datasets (un CSV par tir + `manifest.json`).
 
