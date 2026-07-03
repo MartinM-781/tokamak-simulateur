@@ -60,7 +60,11 @@ de disruptions par détection d'anomalies sur séries temporelles.
   diagnostics). À lancer avant toute campagne de recherche et après toute
   modification physique du v6 ; `--rapide` pour un balayage réduit.
 - `node scripts/generate.js --shots N --out data/runXX --disrupt-ratio R --seed-base S`
-  — génération de datasets (un CSV par tir + `manifest.json`).
+  — génération de datasets v5 (un CSV par tir + `manifest.json`).
+- `node scripts/generate_v6.js` / `node scripts/generate_v6_diags.js` —
+  datasets v6 en unités SI (0D à 1 kHz / diagnostics multi-canaux à 10 kHz,
+  CSV.gz). Pipelines ML associés : `ml/features*.py`, `ml/baseline*.py`,
+  `ml/evaluate*.py` (suffixe `_v6` pour les runs diagnostics).
 
 ## Commits
 
