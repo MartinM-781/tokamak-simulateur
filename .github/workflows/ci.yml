@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  physique:
+    name: Tests physiques + validation v6
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm test
+      - run: node scripts/valide_v6.js --rapide
+
+  ml-smoke:
+    name: Pipeline ML de bout en bout
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install numpy pandas scikit-learn matplotlib
+      - run: node scripts/generate.js --shots 60 --out data/ci_smoke --disrupt-ratio 0.5 --seed-base 7000
+      - run: python ml/features.py data/ci_smoke
+      - run: python ml/baseline.py data/ci_smoke
+      - run: python ml/evaluate.py data/ci_smoke
