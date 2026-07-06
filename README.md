@@ -1,9 +1,16 @@
 # Tokamak — simulateur pédagogique & prédiction de disruptions
 
+[![CI](https://github.com/MartinM-781/tokamak-simulateur/actions/workflows/ci.yml/badge.svg)](https://github.com/MartinM-781/tokamak-simulateur/actions/workflows/ci.yml)
+[![Licence MIT](https://img.shields.io/badge/licence-MIT-blue.svg)](LICENSE)
+[![Zéro dépendance](https://img.shields.io/badge/d%C3%A9pendances-z%C3%A9ro-brightgreen.svg)](package.json)
+
 > Cinq simulateurs interactifs de physique des tokamaks (pages HTML autonomes, zéro
 > dépendance), un générateur déterministe de datasets synthétiques labellisés, et une
 > baseline ML de détection précoce de disruptions — le tout tenu par des tests de
 > régression physique.
+
+**[▶ Démo en ligne](https://martinm-781.github.io/tokamak-simulateur/web/index.html)** —
+les cinq simulateurs, directement dans le navigateur.
 
 ![Acte V — un tir disruptif complet : précurseur Mirnov, verrouillage de mode (zone rouge), quench thermique puis quench de courant](docs/captures/tokamak_v5.png)
 
@@ -124,7 +131,8 @@ data/      datasets générés (gitignoré — régénérable à l'identique par
 
 ## Démarrage rapide
 
-- **Simulateurs** : ouvrir `web/index.html` dans un navigateur. C'est tout.
+- **Simulateurs** : ouvrir `web/index.html` dans un navigateur (ou la
+  [démo en ligne](https://martinm-781.github.io/tokamak-simulateur/web/index.html)). C'est tout.
 - **Datasets** : Node ≥ 18, aucune dépendance npm.
 - **ML** : Python ≥ 3.10 — `pip install numpy pandas scikit-learn matplotlib`.
 
