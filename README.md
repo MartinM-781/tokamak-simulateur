@@ -14,7 +14,7 @@
 **[▶ Open the live demo](https://martinm-781.github.io/tokamak-simulateur/web/index.html)** —
 the five simulators, running directly in your browser. No install, no build, no server.
 
-![Act V — a full disruptive shot: Mirnov precursor, mode locking (red zone), thermal quench then current quench](docs/captures/tokamak_v5.png)
+![Act V live — a healthy plasma, then a full disruption: growing Mirnov precursor, mode locking (red zone, the coils go silent), thermal quench then current quench](docs/captures/demo_disruption.gif)
 
 A tokamak is the magnetic bottle that confines a fusion plasma at 100+ million degrees.
 Its worst failure mode is a **disruption** — the plasma loses control in milliseconds and

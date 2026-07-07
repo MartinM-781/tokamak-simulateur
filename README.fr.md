@@ -14,7 +14,7 @@
 **[▶ Démo en ligne](https://martinm-781.github.io/tokamak-simulateur/web/index.html)** —
 les cinq simulateurs, directement dans le navigateur.
 
-![Acte V — un tir disruptif complet : précurseur Mirnov, verrouillage de mode (zone rouge), quench thermique puis quench de courant](docs/captures/tokamak_v5.png)
+![Acte V en direct — un plasma sain, puis une disruption complète : précurseur Mirnov qui grossit, verrouillage de mode (zone rouge, les bobines se taisent), quench thermique puis quench de courant](docs/captures/demo_disruption.gif)
 
 ## Les cinq actes
 
